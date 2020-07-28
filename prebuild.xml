@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <Prebuild version="1.10" xmlns="http://dnpb.sourceforge.net/schemas/prebuild-1.10.xsd">
-  <Solution activeConfig="Debug" name="OpenSim" path="./" version="0.5.0-$Rev$">
+  <Solution activeConfig="Debug" name="Consortium" path="./" version="0.5.0-$Rev$">
     <Configuration name="Debug" >
       <Options>
         <CompilerDefines>TRACE;DEBUG</CompilerDefines>

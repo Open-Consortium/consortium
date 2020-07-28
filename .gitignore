@@ -81,7 +81,7 @@ bin/*.manifest
 bin/crashes/
 Examples/*.dll
 OpenSim.build
-OpenSim.sln
+Consortium.sln
 OpenSim.userprefs
 Prebuild/Prebuild.build
 Prebuild/Prebuild.sln
