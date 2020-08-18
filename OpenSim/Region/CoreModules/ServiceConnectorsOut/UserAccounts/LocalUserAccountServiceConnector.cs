@@ -243,6 +243,11 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.UserAccounts
             return ret;
         }
 
+        public bool SetDisplayName(UUID userID, string displayName)
+        {
+            return false;
+        }
+
         public void InvalidateCache(UUID userID)
         {
             m_Cache.Invalidate(userID);

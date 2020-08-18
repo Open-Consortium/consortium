@@ -148,6 +148,11 @@ namespace OpenSim.Services.Connectors
             return Get(sendData);
         }
 
+        public bool SetDisplayName(string userID, string displayName)
+        {
+            return false;
+        }
+
         #endregion
 
         protected bool Set(Dictionary<string, object> sendData, string userID, UUID regionID, Vector3 position, Vector3 lookAt)
@@ -229,13 +234,13 @@ namespace OpenSim.Services.Connectors
 
         }
 
-        public GridUserInfo[] GetGridUserInfo(string[] userIDs)
+        public GridUserInfo[] GetGridUserInfo(string[] userIDs, bool update_name)
         {
             Dictionary<string, object> sendData = new Dictionary<string, object>();
             //sendData["SCOPEID"] = scopeID.ToString();
             sendData["VERSIONMIN"] = ProtocolVersions.ClientProtocolVersionMin.ToString();
             sendData["VERSIONMAX"] = ProtocolVersions.ClientProtocolVersionMax.ToString();
-            sendData["METHOD"] = "getgriduserinfos";
+            sendData["METHOD"] = update_name ? "updateandgetgriduserinfos" : "getgriduserinfos";
 
             sendData["AgentIDs"] = new List<string>(userIDs);
 

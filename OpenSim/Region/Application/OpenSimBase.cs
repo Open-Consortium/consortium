@@ -600,7 +600,7 @@ namespace OpenSim
             if (estateOwnerFirstName == null || estateOwnerLastName == null)
             {
                 estateOwnerFirstName = MainConsole.Instance.Prompt("Estate owner first name", "Test", excluded);
-                estateOwnerLastName = MainConsole.Instance.Prompt("Estate owner last name", "User", excluded);
+                estateOwnerLastName = MainConsole.Instance.Prompt("Estate owner last name", "Resident", excluded);
             }
 
             UserAccount account

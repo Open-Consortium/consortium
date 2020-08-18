@@ -367,6 +367,9 @@
     ; for the server connector
     LocalServiceModule = "OpenSim.Services.UserAccountService.dll:UserAccountService"
     ; Realm = "UserAccounts"
+	
+    ; if you are using display names you will want/need to set the charset to utf8mb4
+    ;ConnectionString = "Data Source=localhost;Database=robust;User ID=robust;Password=***;Old Guids=true;CharSet=utf8mb4;"
 
     ; These are for creating new accounts by the service
     AuthenticationService = "OpenSim.Services.AuthenticationService.dll:PasswordAuthenticationService"
@@ -389,11 +392,17 @@
     ;; Default is false.
     ; AllowSetAccount = false
 
+    ;; Allow the service to process HTTP setdisplayname calls.
+    ;; Default is false.
+    ; AllowSetDisplayName = false
+
 
 [GridUserService]
     ; for the server connector
     LocalServiceModule = "OpenSim.Services.UserAccountService.dll:GridUserService"
 
+    ; if you are using display names you will want/need to set the charset to utf8mb4
+    ;ConnectionString = "Data Source=localhost;Database=robust;User ID=robust;Password=***;Old Guids=true;CharSet=utf8mb4;"
 
 [AgentPreferencesService]
     ; for the server connector

@@ -91,6 +91,8 @@ namespace OpenSim.Server.Handlers.GridUser
                         return GetGridUserInfo(request);
                     case "getgriduserinfos":
                         return GetGridUserInfos(request);
+                    case "updateandgetgriduserinfos":
+                        return GetGridUserInfos(request, true);
                 }
                 m_log.DebugFormat("[GRID USER HANDLER]: unknown method request: {0}", method);
             }
@@ -199,7 +201,7 @@ namespace OpenSim.Server.Handlers.GridUser
             return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
-        byte[] GetGridUserInfos(Dictionary<string, object> request)
+        byte[] GetGridUserInfos(Dictionary<string, object> request, bool update_name = false)
         {
 
             string[] userIDs;
@@ -218,7 +220,7 @@ namespace OpenSim.Server.Handlers.GridUser
 
             userIDs = ((List<string>)request["AgentIDs"]).ToArray();
 
-            GridUserInfo[] pinfos = m_GridUserService.GetGridUserInfo(userIDs);
+            GridUserInfo[] pinfos = m_GridUserService.GetGridUserInfo(userIDs, update_name);
 
             Dictionary<string, object> result = new Dictionary<string, object>();
             if ((pinfos == null) || ((pinfos != null) && (pinfos.Length == 0)))

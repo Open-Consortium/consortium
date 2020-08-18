@@ -580,7 +580,8 @@ namespace OpenSim.Services.LLLoginService
                 {
                     processedMessage = m_WelcomeMessage;
                 }
-                processedMessage = processedMessage.Replace("\\n", "\n").Replace("<USERNAME>", firstName + " " + lastName);
+                string username = lastName.ToLower() == "resident" ? firstName : firstName + " " + lastName;
+                processedMessage = processedMessage.Replace("\\n", "\n").Replace("<USERNAME>", username);
 
                 LLLoginResponse response
                     = new LLLoginResponse(
@@ -991,6 +992,7 @@ namespace OpenSim.Services.LLLoginService
             aCircuit.firstname = account.FirstName;
             //aCircuit.InventoryFolder = irrelevant
             aCircuit.lastname = account.LastName;
+            aCircuit.displayname = account.DisplayName;
             aCircuit.SecureSessionID = secureSession;
             aCircuit.SessionID = session;
             aCircuit.startpos = position;

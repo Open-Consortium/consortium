@@ -590,6 +590,7 @@ namespace OpenSim.Services.HypergridService
             {
                 info.Add("user_firstname", account.FirstName);
                 info.Add("user_lastname", account.LastName);
+                info.Add("user_displayname", account.DisplayName);
                 info.Add("result", "success");
 
                 if (m_ShowDetails)

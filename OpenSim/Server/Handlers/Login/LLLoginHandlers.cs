@@ -88,14 +88,27 @@ namespace OpenSim.Server.Handlers.Login
 //                    }
 //                }
 
-                if (requestData.ContainsKey("first") && requestData["first"] != null &&
-                    requestData.ContainsKey("last") && requestData["last"] != null && (
+                if (((requestData.ContainsKey("first") && requestData["first"] != null &&
+                    requestData.ContainsKey("last") && requestData["last"] != null ) ||
+                    (requestData.ContainsKey("username") && requestData["username"] != null)) && (
                         (requestData.ContainsKey("passwd") && requestData["passwd"] != null) ||
                         (!requestData.ContainsKey("passwd") && requestData.ContainsKey("web_login_key") && requestData["web_login_key"] != null && requestData["web_login_key"].ToString() != UUID.Zero.ToString())
                     ))
                 {
-                    string first = requestData["first"].ToString();
-                    string last = requestData["last"].ToString();
+                    string first = null;
+                    string last = null;
+
+                    if(requestData.ContainsKey("username"))
+                    {
+                        first = requestData["username"].ToString();
+                        last = "Resident";
+                    }
+                    else
+                    {
+                        first = requestData["first"].ToString();
+                        last = requestData["last"].ToString();
+                    }
+                    
                     string passwd = null;
                     if (requestData.ContainsKey("passwd"))
                     {

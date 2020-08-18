@@ -421,5 +421,16 @@ namespace OpenSim.Services.Connectors
             return false;
         }
 
+		public virtual bool SetDisplayName(UUID userID, string displayName)
+        {
+            Dictionary<string, object> sendData = new Dictionary<string, object>();
+            sendData["VERSIONMIN"] = ProtocolVersions.ClientProtocolVersionMin.ToString();
+            sendData["VERSIONMAX"] = ProtocolVersions.ClientProtocolVersionMax.ToString();
+            sendData["METHOD"] = "setdisplayname";
+            sendData["USERID"] = userID.ToString();
+            sendData["NAME"] = displayName;
+
+            return SendAndGetBoolReply(sendData);
+        }
     }
 }

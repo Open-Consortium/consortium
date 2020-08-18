@@ -1871,6 +1871,11 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             agentData.firstname = m_firstName;
             agentData.lastname = m_lastName;
 
+            IDisplayNamesModule displayNames = m_scene.RequestModuleInterface<IDisplayNamesModule>();
+            
+            if (displayNames != null)
+                agentData.displayname = displayNames.GetDisplayName(AgentId.ToString());
+
             ICapabilitiesModule capsModule = m_scene.RequestModuleInterface<ICapabilitiesModule>();
 
             if (capsModule == null) // can happen when shutting down.
