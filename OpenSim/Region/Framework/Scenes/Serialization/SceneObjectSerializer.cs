@@ -529,6 +529,9 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
 
             m_SOPXmlProcessors.Add("SitActRange", ProcessSitActRange);
 
+            m_SOPXmlProcessors.Add("AllowUnsit", ProcessAllowUnsit);
+            m_SOPXmlProcessors.Add("ScriptedSitOnly", ProcessScriptedSitOnly);
+
             #endregion
 
             #region TaskInventoryXmlProcessors initialization
@@ -1088,6 +1091,16 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
         private static void ProcessVolumeDetectActive(SceneObjectPart obj, XmlReader reader)
         {
             obj.VolumeDetectActive = Util.ReadBoolean(reader);
+        }
+
+        private static void ProcessAllowUnsit(SceneObjectPart obj, XmlReader reader)
+        {
+            obj.AllowUnsit = Util.ReadBoolean(reader);
+        }
+
+        private static void ProcessScriptedSitOnly(SceneObjectPart obj, XmlReader reader)
+        {
+            obj.ScriptedSitOnly = Util.ReadBoolean(reader);
         }
 
         #endregion
@@ -1662,8 +1675,13 @@ namespace OpenSim.Region.Framework.Scenes.Serialization
                 if(data != null && data.Length > 0)
                     writer.WriteElementString("SOPAnims", Convert.ToBase64String(data));
             }
+			
             if(Math.Abs(sop.SitActiveRange) > 1e-5)
                 writer.WriteElementString("SitActRange", sop.SitActiveRange.ToString(Culture.FormatProvider));
+
+            writer.WriteElementString("AllowUnsit", sop.AllowUnsit.ToString().ToLower());
+            writer.WriteElementString("ScriptedSitOnly", sop.ScriptedSitOnly.ToString().ToLower());
+
             writer.WriteEndElement();
         }
 

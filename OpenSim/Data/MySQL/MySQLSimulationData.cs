@@ -180,7 +180,7 @@ namespace OpenSim.Data.MySQL
                                     "AttachedPosY, AttachedPosZ, " +
                                     "PhysicsShapeType, Density, GravityModifier, " +
                                     "Friction, Restitution, Vehicle, PhysInertia, DynAttrs, " +
-                                    "RotationAxisLocks, sopanims, sitactrange, pseudocrc" + 
+                                    "RotationAxisLocks, sopanims, sitactrange, pseudocrc, AllowUnsit, ScriptedSitOnly" + 
                                     ") values (" + "?UUID, " +
                                     "?CreationDate, ?Name, ?Text, " +
                                     "?Description, ?SitName, ?TouchName, " +
@@ -215,7 +215,7 @@ namespace OpenSim.Data.MySQL
                                     "?AttachedPosY, ?AttachedPosZ, " +
                                     "?PhysicsShapeType, ?Density, ?GravityModifier, " +
                                     "?Friction, ?Restitution, ?Vehicle, ?PhysInertia, ?DynAttrs," +
-                                    "?RotationAxisLocks, ?sopanims, ?sitactrange, ?pseudocrc)";
+                                    "?RotationAxisLocks, ?sopanims, ?sitactrange, ?pseudocrc, ?AllowUnsit, ?ScriptedSitOnly)";
 
                             FillPrimCommand(cmd, prim, obj.UUID, regionUUID);
 
@@ -1289,6 +1289,9 @@ namespace OpenSim.Data.MySQL
             int pseudocrc = (int)row["pseudocrc"];
             if(pseudocrc != 0)
                 prim.PseudoCRC = pseudocrc;
+			
+            prim.AllowUnsit = ((sbyte)row["AllowUnsit"] != 0);
+            prim.ScriptedSitOnly = ((sbyte)row["ScriptedSitOnly"] != 0);
 
             return prim;
         }
@@ -1710,6 +1713,16 @@ namespace OpenSim.Data.MySQL
 
             cmd.Parameters.AddWithValue("sitactrange", prim.SitActiveRange);
             cmd.Parameters.AddWithValue("pseudocrc", prim.PseudoCRC);
+
+            if (prim.AllowUnsit)
+                cmd.Parameters.AddWithValue("AllowUnsit", 1);
+            else
+                cmd.Parameters.AddWithValue("AllowUnsit", 0);
+
+            if (prim.ScriptedSitOnly)
+                cmd.Parameters.AddWithValue("ScriptedSitOnly", 1);
+            else
+                cmd.Parameters.AddWithValue("ScriptedSitOnly", 0);
         }
 
         /// <summary>
