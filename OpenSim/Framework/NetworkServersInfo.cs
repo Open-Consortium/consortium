@@ -27,11 +27,13 @@
 
 using System;
 using Nini.Config;
+using System.Net;
 
 namespace OpenSim.Framework
 {
     public class NetworkServersInfo
     {
+        public IPAddress HttpListenerAddress = IPAddress.Any;
         public uint HttpListenerPort = ConfigSettings.DefaultRegionHttpPort;
         public bool secureInventoryServer = false;
         public bool isSandbox;
@@ -58,6 +60,10 @@ namespace OpenSim.Framework
 
         public void loadFromConfiguration(IConfigSource config)
         {
+            string str_ip = config.Configs["Network"].GetString("http_listener_address", "0.0.0.0");
+            if (!IPAddress.TryParse(str_ip, out HttpListenerAddress))
+                HttpListenerAddress = IPAddress.Any;
+
             HttpListenerPort =
                 (uint) config.Configs["Network"].GetInt("http_listener_port", (int) ConfigSettings.DefaultRegionHttpPort);
             httpSSLPort =

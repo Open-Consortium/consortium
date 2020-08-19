@@ -33,6 +33,9 @@
     ; The private port of the Robust server
     PrivatePort = "8003"
 
+    ; What IP address you would like to bind to
+    IPAddress = "0.0.0.0"
+
 ; * The startup section lists all the connectors to start up in this server
 ; * instance. This may be only one, or it may be the entire server suite.
 ; * Multiple connectors should be separated by commas.
@@ -132,6 +135,8 @@
 ; *
 [Network]
     port = ${Const|PrivatePort}
+
+	address = ${Const|IPAddress}
 
     ; HTTPS for "Out of band" management applications such as the remote admin
     ; module. May specify https_main = True to make the main http server
