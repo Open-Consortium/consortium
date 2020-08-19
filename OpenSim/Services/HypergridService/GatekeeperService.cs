@@ -58,7 +58,8 @@ namespace OpenSim.Services.HypergridService
         private static IUserAgentService m_UserAgentService;
         private static ISimulationService m_SimulationService;
         private static IGridUserService m_GridUserService;
-        private static IBansService m_BansService;
+        //private static IBansService m_BansService;
+        private static IAccessControlService m_AccessControlService;
 
         private static string m_AllowedClients = string.Empty;
         private static string m_DeniedClients = string.Empty;
@@ -91,7 +92,8 @@ namespace OpenSim.Services.HypergridService
                 string presenceService = serverConfig.GetString("PresenceService", String.Empty);
                 string simulationService = serverConfig.GetString("SimulationService", String.Empty);
                 string gridUserService = serverConfig.GetString("GridUserService", String.Empty);
-                string bansService = serverConfig.GetString("BansService", String.Empty);
+                //string bansService = serverConfig.GetString("BansService", String.Empty);
+                string accessControlService = serverConfig.GetString("AccessControlService", string.Empty);
 
                 // These are mandatory, the others aren't
                 if (gridService == string.Empty || presenceService == string.Empty)
@@ -126,8 +128,10 @@ namespace OpenSim.Services.HypergridService
                     m_UserAgentService = ServerUtils.LoadPlugin<IUserAgentService>(homeUsersService, args);
                 if (gridUserService != string.Empty)
                     m_GridUserService = ServerUtils.LoadPlugin<IGridUserService>(gridUserService, args);
-                if (bansService != string.Empty)
-                    m_BansService = ServerUtils.LoadPlugin<IBansService>(bansService, args);
+                //if (bansService != string.Empty)
+                //    m_BansService = ServerUtils.LoadPlugin<IBansService>(bansService, args);
+                if (accessControlService != string.Empty)
+                    m_AccessControlService = ServerUtils.LoadPlugin<IAccessControlService>(accessControlService, args);
 
                 if (simService != null)
                     m_SimulationService = simService;
@@ -388,12 +392,24 @@ namespace OpenSim.Services.HypergridService
             // Is the user banned?
             // This uses a Ban service that's more powerful than the configs
             //
-            string uui = (account != null ? aCircuit.AgentID.ToString() : Util.ProduceUserUniversalIdentifier(aCircuit));
-            if (m_BansService != null && m_BansService.IsBanned(uui, aCircuit.IPAddress, aCircuit.Id0, authURL))
+            // string uui = (account != null ? aCircuit.AgentID.ToString() : Util.ProduceUserUniversalIdentifier(aCircuit));
+            // if (m_BansService != null && m_BansService.IsBanned(uui, aCircuit.IPAddress, aCircuit.Id0, authURL))
+            // {
+            //     reason = "You are banned from this world";
+            //     m_log.InfoFormat("[GATEKEEPER SERVICE]: Login failed, reason: user {0} is banned", uui);
+            //     return false;
+            // }
+
+            // Check if the hardware or IP is banned
+            if (m_AccessControlService != null)
             {
-                reason = "You are banned from this world";
-                m_log.InfoFormat("[GATEKEEPER SERVICE]: Login failed, reason: user {0} is banned", uui);
-                return false;
+                if(m_AccessControlService.IsHardwareBanned(aCircuit.Mac, aCircuit.Id0) ||
+                    m_AccessControlService.IsIPBanned(aCircuit.IPAddress))
+                {
+                    reason = "You are banned from this grid.";
+                    m_log.InfoFormat("[GATEKEEPER SERVICE] Login failed for {0}, reason: hardware or ip is banned", aCircuit.AgentID);
+                    return false;
+                }
             }
 
             UUID agentID = aCircuit.AgentID;

@@ -68,6 +68,7 @@ namespace OpenSim.Services.LLLoginService
         protected IFriendsService m_FriendsService;
         protected IAvatarService m_AvatarService;
         protected IUserAgentService m_UserAgentService;
+        protected IAccessControlService m_AccessControlService;
 
         protected GatekeeperServiceConnector m_GatekeeperConnector;
 
@@ -114,6 +115,7 @@ namespace OpenSim.Services.LLLoginService
             string friendsService = m_LoginServerConfig.GetString("FriendsService", String.Empty);
             string avatarService = m_LoginServerConfig.GetString("AvatarService", String.Empty);
             string simulationService = m_LoginServerConfig.GetString("SimulationService", String.Empty);
+            string accessControlService = m_LoginServerConfig.GetString("AccessControlService", string.Empty);
 
             m_DefaultRegionName = m_LoginServerConfig.GetString("DefaultRegion", String.Empty);
             m_WelcomeMessage = m_LoginServerConfig.GetString("WelcomeMessage", "Welcome to OpenSim!");
@@ -189,6 +191,8 @@ namespace OpenSim.Services.LLLoginService
                 m_RemoteSimulationService = ServerUtils.LoadPlugin<ISimulationService>(simulationService, args);
             if (agentService != string.Empty)
                 m_UserAgentService = ServerUtils.LoadPlugin<IUserAgentService>(agentService, args);
+            if (accessControlService != string.Empty)
+                m_AccessControlService = ServerUtils.LoadPlugin<IAccessControlService>(accessControlService, args);
 
             // Get the Hypergrid inventory service (exists only if Hypergrid is enabled)
             string hgInvServicePlugin = m_LoginServerConfig.GetString("HGInventoryServicePlugin", String.Empty);
@@ -287,6 +291,15 @@ namespace OpenSim.Services.LLLoginService
         public LoginResponse Login(string firstName, string lastName, string passwd, string startLocation, UUID scopeID,
             string clientVersion, string channel, string mac, string id0, IPEndPoint clientIP)
         {
+            if(m_AccessControlService != null)
+            {
+                if(m_AccessControlService.IsIPBanned(clientIP.Address.ToString()))
+                {
+                    m_log.InfoFormat("[LLOGIN SERVICE]: Login failed, reason: client with banned ip {0}", clientIP.ToString());
+                    return LLFailedLoginResponse.BannedHardwareOrIP;
+                }
+            }
+
             bool success = false;
             UUID session = UUID.Random();
 
@@ -318,7 +331,7 @@ namespace OpenSim.Services.LLLoginService
                         m_log.InfoFormat(
                             "[LLOGIN SERVICE]: Login failed for {0} {1}, reason: client {2} is not allowed",
                             firstName, lastName, clientNameToCheck);
-                        return LLFailedLoginResponse.LoginBlockedProblem;
+                        return LLFailedLoginResponse.ClientNotAllowed;
                     }
                 }
 
@@ -332,7 +345,7 @@ namespace OpenSim.Services.LLLoginService
                         m_log.InfoFormat(
                             "[LLOGIN SERVICE]: Login failed for {0} {1}, reason: client {2} is denied",
                             firstName, lastName, clientNameToCheck);
-                        return LLFailedLoginResponse.LoginBlockedProblem;
+                        return LLFailedLoginResponse.ClientNotAllowed;
                     }
                 }
 
@@ -342,7 +355,16 @@ namespace OpenSim.Services.LLLoginService
                     if (m_DeniedMacs.Contains(curMac))
                     {
                         m_log.InfoFormat("[LLOGIN SERVICE]: Login failed, reason: client with mac {0} is denied", curMac);
-                        return LLFailedLoginResponse.LoginBlockedProblem;
+                        return LLFailedLoginResponse.BannedHardwareOrIP;
+                    }
+                }
+
+                if(m_AccessControlService != null)
+                {
+                    if(m_AccessControlService.IsHardwareBanned(mac, id0))
+                    {
+                        m_log.InfoFormat("[LLOGIN SERVICE]: Login failed, reason: client with banned hardware ids");
+                        return LLFailedLoginResponse.BannedHardwareOrIP;
                     }
                 }
 
