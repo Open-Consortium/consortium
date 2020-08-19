@@ -131,9 +131,13 @@ namespace OpenSim.Server.Handlers.Login
                         id0 = requestData["id0"].ToString();
 
                     //m_log.InfoFormat("[LOGIN]: XMLRPC Login Requested for {0} {1}, starting in {2}, using {3}", first, last, startLocation, clientVersion);
+					
+                    bool agree_to_tos = false;
+                    if (requestData.Contains("agree_to_tos") && requestData["agree_to_tos"] != null)
+                        agree_to_tos = requestData["agree_to_tos"].ToString() == "1";
 
                     LoginResponse reply = null;
-                    reply = m_LocalService.Login(first, last, passwd, startLocation, scopeID, clientVersion, channel, mac, id0, remoteClient);
+                    reply = m_LocalService.Login(first, last, passwd, startLocation, scopeID, clientVersion, channel, mac, id0, remoteClient, agree_to_tos);
 
                     XmlRpcResponse response = new XmlRpcResponse();
                     response.Value = reply.ToHashtable();

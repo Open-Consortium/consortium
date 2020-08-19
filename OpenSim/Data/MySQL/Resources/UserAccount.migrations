@@ -29,3 +29,11 @@ BEGIN;
 ALTER TABLE `UserAccounts` ADD `active` INT NOT NULL DEFAULT '1';
 
 COMMIT;
+
+:VERSION 7		# -------------------------
+
+BEGIN;
+
+ALTER TABLE `UserAccounts` ADD `TOSDate` INT UNSIGNED NULL;
+
+COMMIT;

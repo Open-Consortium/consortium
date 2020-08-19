@@ -206,6 +206,9 @@ namespace OpenSim.Services.UserAccountService
                 u.UserCountry = d.Data["UserCountry"].ToString();
             else
                 u.UserCountry = string.Empty;
+			
+			if (d.Data.ContainsKey("TOSDate") && !string.IsNullOrWhiteSpace(d.Data["TOSDate"]?.ToString()))
+				u.TOSDate = Convert.ToInt32(d.Data["TOSDate"].ToString());
 
             if (d.Data.ContainsKey("ServiceURLs") && d.Data["ServiceURLs"] != null)
             {
@@ -324,6 +327,8 @@ namespace OpenSim.Services.UserAccountService
                 d.Data["UserTitle"] = data.UserTitle;
             if (!string.IsNullOrEmpty(data.UserCountry))
                 d.Data["UserCountry"] = data.UserCountry;
+			d.Data["TOSDate"] = data.TOSDate.ToString();
+			
             List<string> parts = new List<string>();
 
             foreach (KeyValuePair<string, object> kvp in data.ServiceURLs)
