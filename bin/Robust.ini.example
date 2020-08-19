@@ -509,6 +509,12 @@
      ;; Allow banning via hashed MAC
     ;DeniedMacs = "YOURLONGMACTRSING ANOTHERMAC"
 
+    ;; The url for your TOS
+    ; TOS_URL = "http://tos.main.examplegrid.com";
+	
+    ;; The Unix time it was last updated
+    ; TOS_Date = 0
+
 [MapImageService]
     LocalServiceModule = "OpenSim.Services.MapImageService.dll:MapImageService"
 

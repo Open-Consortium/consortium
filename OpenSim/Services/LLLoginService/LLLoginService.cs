@@ -93,6 +93,8 @@ namespace OpenSim.Services.LLLoginService
         protected string m_DSTZone;
         protected bool m_allowDuplicatePresences = false;
         protected string m_messageKey;
+        protected string m_TOS_URL;
+        protected int m_TOS_Date;
 
         IConfig m_LoginServerConfig;
 //        IConfig m_ClientsConfig;
@@ -141,6 +143,9 @@ namespace OpenSim.Services.LLLoginService
 
             m_MessageUrl = m_LoginServerConfig.GetString("MessageUrl", string.Empty);
             m_DSTZone = m_LoginServerConfig.GetString("DSTZone", "America/Los_Angeles;Pacific Standard Time");
+
+            m_TOS_URL = m_LoginServerConfig.GetString("TOS_URL", string.Empty);
+            m_TOS_Date = m_LoginServerConfig.GetInt("TOS_Date", 0);
 
             IConfig groupConfig = config.Configs["Groups"];
             if (groupConfig != null)
@@ -285,7 +290,7 @@ namespace OpenSim.Services.LLLoginService
         }
 
         public LoginResponse Login(string firstName, string lastName, string passwd, string startLocation, UUID scopeID,
-            string clientVersion, string channel, string mac, string id0, IPEndPoint clientIP)
+            string clientVersion, string channel, string mac, string id0, IPEndPoint clientIP, bool agree_to_tos = false)
         {
             bool success = false;
             UUID session = UUID.Random();
@@ -403,6 +408,26 @@ namespace OpenSim.Services.LLLoginService
                 {
                     // really?
                     return LLFailedLoginResponse.UserProblem;
+                }
+
+                if (m_TOS_URL != string.Empty && account.TOSDate < m_TOS_Date)
+                {
+                    if(!agree_to_tos)
+                    {
+                        m_log.InfoFormat(
+                            "[LLOGIN SERVICE]: Login failed for {0} {1}, reason: ToS has expired",
+                            firstName, lastName);
+                        return new LLFailedLoginResponse("tos", m_TOS_URL, "false");
+                    }
+                    else
+                    {
+                        m_log.InfoFormat("[LLOGIN SERVICE]: {0} {1} has agreed to the current TOS", firstName, lastName);
+                        account.TOSDate = m_TOS_Date;
+                        if(!m_UserAccountService.StoreUserAccount(account))
+                        {
+                            m_log.InfoFormat("[LLOGIN SERVICE]: Error updating UserAccount entry for {0} {1}", firstName, lastName);
+                        }
+                    }
                 }
 
                 string PrincipalIDstr = account.PrincipalID.ToString();
