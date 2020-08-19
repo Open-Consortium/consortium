@@ -58,6 +58,8 @@ namespace OpenSim.Services.LLLoginService
         public static LLFailedLoginResponse UnverifiedAccountProblem;
         public static LLFailedLoginResponse AlreadyLoggedInProblem;
         public static LLFailedLoginResponse InternalError;
+        public static LLFailedLoginResponse BannedHardwareOrIP;
+        public static LLFailedLoginResponse ClientNotAllowed;
 
         static LLFailedLoginResponse()
         {
@@ -86,6 +88,8 @@ namespace OpenSim.Services.LLLoginService
                 "If this takes longer than a few minutes please contact the grid owner. ",
                 "false");
             InternalError = new LLFailedLoginResponse("Internal Error", "Error generating Login Response", "false");
+            BannedHardwareOrIP = new LLFailedLoginResponse("presence", "You are banned from this grid.", "false");
+            ClientNotAllowed = new LLFailedLoginResponse("presence", "The client you are using is not allowed on this grid.", "false");
         }
 
         public LLFailedLoginResponse(string key, string value, string login)

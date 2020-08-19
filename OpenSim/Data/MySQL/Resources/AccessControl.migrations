@@ -1,0 +1,21 @@
+﻿:VERSION 2         # -------------------------------
+
+begin;
+
+CREATE TABLE IF NOT EXISTS `banned_macs` (
+  `mac` VARCHAR(32) NOT NULL,
+  PRIMARY KEY (`mac`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `banned_id0s` (
+  `id0` VARCHAR(32) NOT NULL,
+  PRIMARY KEY (`id0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `banned_ips` (
+  `ip` VARCHAR(15) NOT NULL,
+  PRIMARY KEY (`ip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+COMMIT;
+
