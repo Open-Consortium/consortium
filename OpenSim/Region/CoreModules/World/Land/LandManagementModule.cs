@@ -693,8 +693,8 @@ namespace OpenSim.Region.CoreModules.World.Land
                 uint flags, UUID transactionID, int landLocalID, List<LandAccessEntry> entries,
                 IClientAPI remote_client)
         {
-            if ((flags & 0x03) == 0)
-                return; // we only have access and ban
+            if ((flags & (uint)AccessList.All) == 0)
+                return;
 
             if(m_scene.RegionInfo.EstateSettings.TaxFree)
                 return;
@@ -711,6 +711,10 @@ namespace OpenSim.Region.CoreModules.World.Land
                 if ((flags & (uint)AccessList.Access) != 0)
                     requiredPowers |= GroupPowers.LandManageAllowed;
                 if ((flags & (uint)AccessList.Ban) != 0)
+                    requiredPowers |= GroupPowers.LandManageBanned;
+                if ((flags & (uint)AccessList.Allowed) != 0)
+                    requiredPowers |= GroupPowers.LandManageAllowed;
+                if ((flags & (uint)AccessList.Blocked) != 0)
                     requiredPowers |= GroupPowers.LandManageBanned;
 
                 if(requiredPowers == GroupPowers.None)

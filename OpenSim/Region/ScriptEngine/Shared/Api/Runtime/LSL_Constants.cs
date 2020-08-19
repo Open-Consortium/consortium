@@ -450,10 +450,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int PRIM_SPECULAR = 36;
         public const int PRIM_NORMAL = 37;
         public const int PRIM_ALPHA_MODE = 38;
-        //ApiDesc not supported
-        public const int PRIM_ALLOW_UNSIT = 39; // experiences related. unsupported
-        //ApiDesc not supported
-        public const int PRIM_SCRIPTED_SIT_ONLY = 40; // experiences related. unsupported
+        public const int PRIM_ALLOW_UNSIT = 39;
+        public const int PRIM_SCRIPTED_SIT_ONLY = 40;
         public const int PRIM_SIT_TARGET = 41;
 
 
@@ -974,5 +972,35 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         // llTargetedEmail
         public const int TARGETED_EMAIL_ROOT_CREATOR = 1;
         public const int TARGETED_EMAIL_OBJECT_OWNER = 2;
+
+        // Experience
+        public const int XP_ERROR_NONE = 0;
+        public const int XP_ERROR_THROTTLED = 1;
+        public const int XP_ERROR_EXPERIENCES_DISABLED = 2;
+        public const int XP_ERROR_INVALID_PARAMETERS = 3;
+        public const int XP_ERROR_NOT_PERMITTED = 4;
+        public const int XP_ERROR_NO_EXPERIENCE = 5;
+        public const int XP_ERROR_NOT_FOUND = 6;
+        public const int XP_ERROR_INVALID_EXPERIENCE = 7;
+        public const int XP_ERROR_EXPERIENCE_DISABLED = 8;
+        public const int XP_ERROR_EXPERIENCE_SUSPENDED = 9;
+        public const int XP_ERROR_UNKNOWN_ERROR = 10;
+        public const int XP_ERROR_QUOTA_EXCEEDED = 11;
+        public const int XP_ERROR_STORE_DISABLED = 12;
+        public const int XP_ERROR_STORAGE_EXCEPTION = 13;
+        public const int XP_ERROR_KEY_NOT_FOUND = 14;
+        public const int XP_ERROR_RETRY_UPDATE = 15;
+        public const int XP_ERROR_MATURITY_EXCEEDED = 16;
+        public const int XP_ERROR_NOT_PERMITTED_LAND = 17;
+        public const int XP_ERROR_REQUEST_PERM_TIMEOUT = 18;
+
+        // llSitOnLink
+        public const int SIT_NOT_EXPERIENCE = -1;
+        public const int SIT_NO_EXPERIENCE_PERMISSION = -2;
+        public const int SIT_NO_SIT_TARGET = -3;
+        public const int SIT_INVALID_AGENT = -4;
+        public const int SIT_INVALID_LINK = -5;
+        public const int SIT_NO_ACCESS = -6;
+        public const int SIT_INVALID_OBJECT = -7;
     }
 }

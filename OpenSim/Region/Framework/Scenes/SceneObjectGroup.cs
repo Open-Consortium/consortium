@@ -250,6 +250,12 @@ namespace OpenSim.Region.Framework.Scenes
         public bool IsAttachment { get; set; }
 
         /// <summary>
+        /// What experience temp attached this item
+        /// This will not be set if the object wasn't temp attached
+        /// </summary>
+        public UUID AttachedExperienceID { get; set; }
+
+        /// <summary>
         /// The avatar to which this scene object is attached.
         /// </summary>
         /// <remarks>

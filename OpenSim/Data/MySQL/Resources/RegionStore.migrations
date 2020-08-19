@@ -550,3 +550,10 @@ BEGIN;
 ALTER TABLE `land` ADD COLUMN `environment` MEDIUMTEXT default NULL;
 COMMIT;
 
+:VERSION 64         #----- Add allow unsit and scripted sit only
+
+BEGIN;
+ALTER TABLE `prims`
+	ADD COLUMN `AllowUnsit` TINYINT(3) NULL DEFAULT '1' AFTER `sopanims`,
+	ADD COLUMN `ScriptedSitOnly` TINYINT(3) NULL DEFAULT '0' AFTER `AllowUnsit`;
+COMMIT;

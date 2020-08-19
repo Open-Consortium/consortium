@@ -462,8 +462,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         LSL_String llList2Json(LSL_String type, LSL_List values);
         LSL_String llJsonSetValue(LSL_String json, LSL_List specifiers, LSL_String value);
         LSL_String llJsonValueType(LSL_String json, LSL_List specifiers);
-
-
+              void llRequestExperiencePermissions(string agent_id, string unused);
+       LSL_Integer llAgentInExperience(string agent_id);
+          LSL_List llGetExperienceDetails(string experience_key);
+        LSL_String llGetExperienceErrorMessage(LSL_Integer error);
+       LSL_Integer llSitOnLink(string agent_id, LSL_Integer link);
+           LSL_Key llCreateKeyValue(string key, string value);
+           LSL_Key llDeleteKeyValue(string key);
+           LSL_Key llReadKeyValue(string key);
+           LSL_Key llUpdateKeyValue(string key, string value, LSL_Integer check, string original);
+           LSL_Key llKeyCountKeyValue();
+           LSL_Key llKeysKeyValue(LSL_Integer first, LSL_Integer count);
+           LSL_Key llDataSizeKeyValue();
         LSL_Integer llGetDayLength();
         LSL_Integer llGetRegionDayLength();
         LSL_Integer llGetDayOffset();

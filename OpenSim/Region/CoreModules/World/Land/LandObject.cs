@@ -969,14 +969,26 @@ namespace OpenSim.Region.CoreModules.World.Land
                 List<LandAccessEntry> accessEntries = CreateAccessListArrayByFlag(AccessList.Ban);
                 remote_client.SendLandAccessListData(accessEntries, (uint)AccessList.Ban, LandData.LocalID);
             }
+
+            if ((flags & (uint)AccessList.Allowed) != 0)
+            {
+                List<LandAccessEntry> accessEntries = CreateAccessListArrayByFlag(AccessList.Allowed);
+                remote_client.SendLandAccessListData(accessEntries, (uint)AccessList.Allowed, LandData.LocalID);
+            }
+
+            if ((flags & (uint)AccessList.Blocked) != 0)
+            {
+                List<LandAccessEntry> accessEntries = CreateAccessListArrayByFlag(AccessList.Blocked);
+                remote_client.SendLandAccessListData(accessEntries, (uint)AccessList.Blocked, LandData.LocalID);
+            }
         }
 
         public void UpdateAccessList(uint flags, UUID transactionID, List<LandAccessEntry> entries)
         {
-            if((flags & 0x03) == 0)
-                return; // we only have access and ban
+            if ((flags & (uint)AccessList.All) == 0)
+                return;
 
-            flags &=0x03 ;
+            flags &= (uint)AccessList.All;
             // get a work copy of lists
             List<LandAccessEntry> parcelAccessList = new List<LandAccessEntry>(LandData.ParcelAccessList);
 

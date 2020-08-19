@@ -1,0 +1,29 @@
+# -----------------
+:VERSION 1
+
+BEGIN;
+
+CREATE TABLE `experiences` (
+	`public_id` VARCHAR(36) NOT NULL COLLATE 'utf8_unicode_ci',
+	`owner_id` VARCHAR(36) NOT NULL COLLATE 'utf8_unicode_ci',
+	`name` VARCHAR(42) NOT NULL COLLATE 'utf8_unicode_ci',
+	`description` VARCHAR(128) NOT NULL COLLATE 'utf8_unicode_ci',
+	`group_id` VARCHAR(36) NOT NULL COLLATE 'utf8_unicode_ci',
+	`logo` VARCHAR(36) NOT NULL COLLATE 'utf8_unicode_ci',
+	`marketplace` VARCHAR(256) NOT NULL COLLATE 'utf8_unicode_ci',
+	`slurl` VARCHAR(256) NOT NULL COLLATE 'utf8_unicode_ci',
+	`maturity` INT(10) NOT NULL,
+	`properties` INT(10) NOT NULL,
+	PRIMARY KEY (`public_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+CREATE TABLE `experience_permissions` (
+	`experience` VARCHAR(36) NOT NULL COLLATE 'utf8mb4_0900_ai_ci',
+	`avatar` VARCHAR(36) NOT NULL COLLATE 'utf8mb4_0900_ai_ci',
+	`allow` BIT(1) NOT NULL,
+	PRIMARY KEY (`experience`) USING BTREE,
+	INDEX `avatar` (`avatar`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+
+COMMIT;
+
