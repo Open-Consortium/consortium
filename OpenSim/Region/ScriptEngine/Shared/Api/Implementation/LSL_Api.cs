@@ -15570,15 +15570,25 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_String llGetDisplayName(LSL_Key id)
         {
             m_host.AddScriptLPS(1);
-            if (UUID.TryParse(id, out UUID key) && key != UUID.Zero)
+
+            IDisplayNamesModule namesModule = World.RequestModuleInterface<IDisplayNamesModule>();
+
+            if(namesModule != null)
             {
-                ScenePresence presence = World.GetScenePresence(key);
-                if (presence != null)
-                {
-                    return presence.Name;
-                }
+                return namesModule.GetCachedDisplayName(id);
             }
-            return String.Empty;
+            else 
+            {
+				if (UUID.TryParse(id, out UUID key) && key != UUID.Zero)
+				{
+					ScenePresence presence = World.GetScenePresence(key);
+					if (presence != null)
+					{
+						return presence.Name;
+					}
+				}
+				return String.Empty;
+            }
         }
 
         public LSL_Key llRequestDisplayName(LSL_Key id)
@@ -15587,8 +15597,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (!UUID.TryParse(id, out UUID key) || key == UUID.Zero)
                 return string.Empty;
 
+            IDisplayNamesModule namesModule = World.RequestModuleInterface<IDisplayNamesModule>();
+
             ScenePresence lpresence = World.GetScenePresence(key);
-            if (lpresence != null)
+            if (lpresence != null && namesModule == null)
             {
                 string lname = lpresence.Name;
                 string ftid = m_AsyncCommands.DataserverPlugin.RequestWithImediatePost(m_host.LocalId,
@@ -15599,23 +15611,31 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             Action<string> act = eventID =>
             {
                 string name = String.Empty;
-                ScenePresence presence = World.GetScenePresence(key);
-                if (presence != null)
-                {
-                    name = presence.Name;
-                }
-                else if (World.TryGetSceneObjectPart(key, out SceneObjectPart sop) && sop != null)
-                {
-                    name = sop.Name;
-                }
-                else
-                {
-                    UserAccount account = m_userAccountService.GetUserAccount(RegionScopeID, key);
-                    if (account != null)
-                    {
-                        name = account.FirstName + " " + account.LastName;
-                    }
-                }
+
+				if(namesModule != null)
+				{
+					name = namesModule.GetDisplayName(id);
+				}
+				else
+				{
+					ScenePresence presence = World.GetScenePresence(key);
+					if (presence != null)
+					{
+						name = presence.Name;
+					}
+					else if (World.TryGetSceneObjectPart(key, out SceneObjectPart sop) && sop != null)
+					{
+						name = sop.Name;
+					}
+					else
+					{
+						UserAccount account = m_userAccountService.GetUserAccount(RegionScopeID, key);
+						if (account != null)
+						{
+							name = account.FirstName + " " + account.LastName;
+						}
+					}
+				}
                 m_AsyncCommands.DataserverPlugin.DataserverReply(eventID, name);
             };
 

@@ -684,6 +684,7 @@
     Cap_GetMesh = "localhost"
     Cap_AvatarPickerSearch = "localhost"
     Cap_GetDisplayNames = "localhost"
+    Cap_SetDisplayName = "localhost"
 
 
 [SimulatorFeatures]
@@ -1235,6 +1236,10 @@
 
 [Experience]
     ;# {Enabled} {} {Use Experience Tools on this region} {true false} false
+    ; Enabled = false
+
+[DisplayNames]
+    ;# {Enabled} {} {Use Display Names on this region} {true false} false
     ; Enabled = false
 
 [Architecture]

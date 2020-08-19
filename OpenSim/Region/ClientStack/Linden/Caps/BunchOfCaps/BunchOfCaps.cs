@@ -125,6 +125,21 @@ namespace OpenSim.Region.ClientStack.Linden
         private  IUserManagement m_UserManager;
         private IUserAccountService m_userAccountService;
         private IMoneyModule m_moneyModule;
+        private  IDisplayNamesModule m_DisplayNames;
+        private bool m_AllowSetDisplayName = true;
+        private string m_HomeURL = string.Empty;
+        private bool m_TrimResident = true;
+
+        IEventQueue m_EventQueue;
+        IEventQueue EventQueue
+        {
+            get
+            {
+                if (m_EventQueue == null)
+                    m_EventQueue = m_Scene.RequestModuleInterface<IEventQueue>();
+                return m_EventQueue;
+            }
+        }
 
         private enum FileAgentInventoryState : int
         {
@@ -199,6 +214,22 @@ namespace OpenSim.Region.ClientStack.Linden
                     string GroupMemberDataUrl = CapsConfig.GetString("Cap_GroupMemberData", "localhost");
                     if(GroupMemberDataUrl == String.Empty)
                         m_AllowCapGroupMemberData = false;
+					
+                    string SetDisplayNameURL = CapsConfig.GetString("Cap_SetDisplayName", "localhost");
+                    if (SetDisplayNameURL == String.Empty)
+                        m_AllowSetDisplayName = false;
+                }
+				
+				IConfig hypergridConfig = config.Configs["Hypergrid"];
+                if (hypergridConfig != null)
+                {
+                    m_HomeURL = hypergridConfig.GetString("HomeURI", string.Empty);
+                }
+				
+                IConfig namesConfig = config.Configs["DisplayNames"];
+                if (namesConfig != null)
+                {
+                    m_TrimResident = namesConfig.GetBoolean("TrimResident", true);
                 }
             }
 
@@ -207,8 +238,19 @@ namespace OpenSim.Region.ClientStack.Linden
             m_UserManager = m_Scene.RequestModuleInterface<IUserManagement>();
             m_userAccountService = m_Scene.RequestModuleInterface<IUserAccountService>();
             m_moneyModule = m_Scene.RequestModuleInterface<IMoneyModule>();
+            m_DisplayNames = m_Scene.RequestModuleInterface<IDisplayNamesModule>();
+			
+            if (m_DisplayNames == null)
+                m_log.Error("[CAPS]: GetDisplayNames disabled because display names component not found");
+
             if (m_UserManager == null)
                 m_log.Error("[CAPS]: GetDisplayNames disabled because user management component not found");
+			
+            if (m_UserManager == null)
+            {
+                m_log.Error("[CAPS]: SetDisplayName disabled because user management component not found");
+                m_AllowSetDisplayName = false;
+            }
 
             UserAccount account = m_userAccountService.GetUserAccount(m_Scene.RegionInfo.ScopeID, m_AgentID);
             if (account == null) // Hypergrid?
@@ -339,10 +381,16 @@ namespace OpenSim.Region.ClientStack.Linden
         {
             try
             {
-                if (m_UserManager != null)
+                if (m_DisplayNames != null)
                 {
                     m_HostCapsObj.RegisterSimpleHandler("GetDisplayNames",
                         new SimpleStreamHandler(GetNewCapPath(), GetDisplayNames));
+						
+                    if(m_AllowSetDisplayName)
+                    {
+						m_HostCapsObj.RegisterSimpleHandler("SetDisplayName",
+							new SimpleStreamHandler(GetNewCapPath(), SetDisplayName));
+                    }
                 }
             }
             catch (Exception e)
@@ -1975,7 +2023,11 @@ namespace OpenSim.Region.ClientStack.Linden
             NameValueCollection query = httpRequest.QueryString;
             string[] ids = query.GetValues("ids");
 
-            Dictionary<UUID,string> names = m_UserManager.GetUsersNames(ids, m_scopeID);
+            Dictionary<UUID, NameInfo> names = m_DisplayNames.GetDisplayNames(ids);
+
+            bool is_local = m_UserManager.IsLocalGridUser(m_AgentID);
+            string home_uri = m_UserManager.GetUserHomeURL(m_AgentID);
+            
             StringBuilder lsl = LLSDxmlEncode.Start(names.Count * 256 + 256);
             LLSDxmlEncode.AddMap(lsl);
             int ct = 0;
@@ -1985,33 +2037,70 @@ namespace OpenSim.Region.ClientStack.Linden
             {
                 LLSDxmlEncode.AddArray("agents", lsl);
 
-                foreach (KeyValuePair<UUID,string> kvp in names)
+                foreach (KeyValuePair<UUID, NameInfo> kvp in names)
                 {
-                    string[] parts = kvp.Value.Split(new char[] {' '});
-                    string fullname = kvp.Value;
-
-                    if (string.IsNullOrEmpty(kvp.Value))
-                    {
-                        parts = new string[] {"(hippos)", ""};
-                        fullname = "(hippos)";
-                    }
-
                     if(kvp.Key == UUID.Zero)
                         continue;
 
-                // dont tell about unknown users, we can't send them back on Bad either
-                    if(parts[0] == "Unknown")
-                         continue;
+                    NameInfo nameInfo = kvp.Value;
+                    
+                    string firstname = nameInfo.FirstName;
+                    string lastname = nameInfo.LastName;
+                    string displayname = nameInfo.DisplayName;
+                    string username = getUserName(firstname, lastname);
+                    bool is_default_name = nameInfo.IsDefault;
+                    
+                    if(nameInfo.IsLocal && is_local == false)
+                    {
+                        if (is_default_name)
+                        {
+                            displayname = getDefaultName(firstname, lastname);
+                            is_default_name = false;
+                        }
+                        firstname = getUserName(firstname, lastname);
+                        lastname = "@" + new Uri(m_HomeURL).Authority;
+                        username = (firstname + lastname).ToLower();
+                    }
+
+                    if(!nameInfo.IsLocal)
+                    {
+                        string[] parts = firstname.Split('.');
+                        if(parts.Length == 2)
+                        {
+                            if(nameInfo.HomeURI == home_uri)
+                            {
+                                firstname = parts[0];
+                                lastname = parts[1];
+                                username = getUserName(firstname, lastname);
+                                displayname = nameInfo.IsDefault ? getDefaultName(firstname, lastname) : nameInfo.DisplayName;
+                            }
+                            else
+                            {
+                                firstname = getUserName(parts[0], parts[1]);
+                                username = (firstname + lastname).ToLower();
+
+                                if (is_default_name)
+                                {
+                                    displayname = getDefaultName(parts[0], parts[1]);
+									is_default_name = false;
+								}
+                            }
+                        }
+                    }
+
+                    DateTime test = nameInfo.NameChanged.AddDays(7);
+
+                    //m_log.InfoFormat("{0} {1} can change their name on {2}", nameInfo.FirstName, nameInfo.LastName, test.ToString());
 
                     LLSDxmlEncode.AddMap(lsl);
-                    LLSDxmlEncode.AddElem("display_name_next_update", DateTime.UtcNow.AddDays(8), lsl);
-                    LLSDxmlEncode.AddElem("display_name_expires", DateTime.UtcNow.AddMonths(1), lsl);
-                    LLSDxmlEncode.AddElem("display_name", fullname, lsl);
-                    LLSDxmlEncode.AddElem("legacy_first_name", parts[0], lsl);
-                    LLSDxmlEncode.AddElem("legacy_last_name", parts[1], lsl);
-                    LLSDxmlEncode.AddElem("username", fullname, lsl);
+                    LLSDxmlEncode.AddElem("display_name_next_update", test, lsl); // fix this
+                    LLSDxmlEncode.AddElem("display_name_expires", test, lsl); // fix this
+                    LLSDxmlEncode.AddElem("display_name", displayname, lsl);
+                    LLSDxmlEncode.AddElem("legacy_first_name", firstname, lsl);
+                    LLSDxmlEncode.AddElem("legacy_last_name", lastname, lsl);
+                    LLSDxmlEncode.AddElem("username", username, lsl);
                     LLSDxmlEncode.AddElem("id", kvp.Key, lsl);
-                    LLSDxmlEncode.AddElem("is_display_name_default", true, lsl);
+                    LLSDxmlEncode.AddElem("is_display_name_default", is_default_name, lsl);
                     LLSDxmlEncode.AddEndMap(lsl);
                     ct++;
                 }
@@ -2024,6 +2113,201 @@ namespace OpenSim.Region.ClientStack.Linden
             httpResponse.ContentType = "application/llsd+xml";
             httpResponse.StatusCode = (int)HttpStatusCode.OK;
         }
+		
+		public void SetDisplayName(IOSHttpRequest httpRequest, IOSHttpResponse httpResponse)
+        {
+            if (httpRequest.HttpMethod != "POST")
+            {
+                httpResponse.StatusCode = (int)HttpStatusCode.NotFound;
+                return;
+            }
+
+            ScenePresence sp = m_Scene.GetScenePresence(m_AgentID);
+            if(sp == null || sp.IsDeleted)
+            {
+                httpResponse.StatusCode = (int)HttpStatusCode.Gone;
+                return;
+            }
+			
+            if(sp.IsInTransit && !sp.IsInLocalTransit)
+            {
+                httpResponse.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                httpResponse.AddHeader("Retry-After","30");
+                return;
+            }
+
+            if (EventQueue == null)
+            {
+                httpResponse.StatusCode = (int)HttpStatusCode.InternalServerError;
+                return;
+            }
+            
+            if (!m_UserManager.IsLocalGridUser(m_AgentID))
+            {
+                m_Scene.GetScenePresence(m_AgentID).ControllingClient.SendAlertMessage("You can only set your display name on your home grid!");
+                return;
+            }
+
+            OSDMap req = (OSDMap)OSDParser.DeserializeLLSDXml(httpRequest.InputStream);
+            if (req.ContainsKey("display_name"))
+            {
+                OSDArray name = req["display_name"] as OSDArray;
+
+                string oldName = name[0].AsString();
+                string newName = name[1].AsString();
+
+                bool resetting = string.IsNullOrWhiteSpace(newName);
+                if (resetting) newName = string.Empty;
+
+                UUID agentID = m_AgentID;
+
+                NameInfo nameInfo = null;
+                bool success = m_DisplayNames.SetDisplayName(agentID, newName, out nameInfo);
+
+                if (success)
+                {
+                    if (resetting)
+                        m_log.InfoFormat("[DISPLAY NAMES] {0} {1} reset their display name", nameInfo.FirstName, nameInfo.LastName);
+                    else
+                        m_log.InfoFormat("[DISPLAY NAMES] {0} {1} changed their display name to {2}", nameInfo.FirstName, nameInfo.LastName, nameInfo.DisplayName);
+
+                    DateTime date = DateTime.UtcNow.AddDays(7);
+
+                    SendDisplayNameUpdate(newName, oldName, nameInfo, m_AgentID, date);
+
+                    m_Scene.ForEachClient(x => { if (x.AgentId != m_AgentID) SendDisplayNameUpdate(newName, oldName, nameInfo, x.AgentId, date); });
+
+                    SetDisplayNameReply(newName, oldName, nameInfo, date);
+                }
+                else
+                {
+                    m_Scene.GetScenePresence(m_AgentID).ControllingClient.SendAlertMessage("You are unable to change your display name at this time!");
+                }
+            }
+			
+			httpResponse.StatusCode = (int)HttpStatusCode.OK;
+		}
+		
+        string getUserName(string firstname, string lastname)
+        {
+            if (m_TrimResident && lastname.ToLower() == "resident")
+                return firstname.ToLower();
+            else return string.Format("{0}.{1}", firstname, lastname).ToLower();
+        }
+
+        string getDefaultName(string firstname, string lastname)
+        {
+            if (m_TrimResident && lastname.ToLower() == "resident")
+                return firstname;
+            else return string.Format("{0} {1}", firstname, lastname);
+        }
+		
+		#region SetDisplayName EventQueue Items
+        public OSD FormatDisplayNameUpdate(string newDisplayName, string oldDisplayName, UUID iD, bool isDefault, string first,
+                                     string last, string account, DateTime nextUpdate)
+        {
+            OSDMap nameReply = new OSDMap { { "message", OSD.FromString("DisplayNameUpdate") } };
+            OSDMap body = new OSDMap();
+
+            OSDMap agentData = new OSDMap();
+            agentData["display_name"] = OSD.FromString(newDisplayName);
+            agentData["id"] = OSD.FromUUID(iD);
+            agentData["is_display_name_default"] = OSD.FromBoolean(isDefault);
+            agentData["legacy_first_name"] = OSD.FromString(first);
+            agentData["legacy_last_name"] = OSD.FromString(last);
+            agentData["username"] = OSD.FromString(account);
+            agentData["display_name_next_update"] = OSD.FromDate(nextUpdate);
+
+            body.Add("agent", agentData);
+            body.Add("agent_id", OSD.FromUUID(iD));
+            body.Add("old_display_name", OSD.FromString(oldDisplayName));
+
+            nameReply.Add("body", body);
+
+            return nameReply;
+        }
+
+        void SendDisplayNameUpdate(string newDisplayName, string oldDisplayName, NameInfo nameInfo, UUID toAgentID, DateTime nextUpdate)
+        {
+            if (EventQueue != null)
+            {
+                if (string.IsNullOrWhiteSpace(newDisplayName))
+                    newDisplayName = m_TrimResident && nameInfo.LastName.ToLower() == "resident" ? newDisplayName = nameInfo.FirstName : nameInfo.Name;
+
+                OSD update = null;
+
+                if (m_UserManager.IsLocalGridUser(toAgentID))
+                {
+                    update = FormatDisplayNameUpdate(newDisplayName, oldDisplayName, m_AgentID, nameInfo.IsDefault,
+                        nameInfo.FirstName, nameInfo.LastName, m_TrimResident && nameInfo.LastName.ToLower() == "resident" ? nameInfo.FirstName.ToLower() : nameInfo.UserName, nextUpdate);
+                }
+                else
+                {
+					string bname = m_TrimResident && nameInfo.LastName.ToLower() == "resident" ? nameInfo.FirstName : nameInfo.Name;
+					
+                    string firstname = getUserName(nameInfo.FirstName, nameInfo.LastName);
+                    string lastname = "@" + new Uri(m_HomeURL).Authority;
+                    string username = (firstname + lastname).ToLower();
+
+                    bool is_default = nameInfo.IsDefault;
+
+                    if(is_default)
+                    {
+                        newDisplayName = bname;
+                        is_default = false;
+                    }
+
+                    update = FormatDisplayNameUpdate(newDisplayName, oldDisplayName, m_AgentID, is_default, firstname, lastname, username, nextUpdate);
+                }
+                
+                EventQueue.Enqueue(update, toAgentID);
+            }
+        }
+
+
+        OSD DisplayNameReply(string newDisplayName, string oldDisplayName, UUID iD, bool isDefault, string first,
+                                    string last, string account, DateTime nextUpdate)
+        {
+            OSDMap nameReply = new OSDMap();
+
+            OSDMap body = new OSDMap();
+            OSDMap content = new OSDMap();
+            OSDMap agentData = new OSDMap();
+
+            content.Add("display_name", OSD.FromString(newDisplayName));
+            content.Add("display_name_next_update", OSD.FromDate(nextUpdate));
+            content.Add("id", OSD.FromUUID(iD));
+            content.Add("is_display_name_default", OSD.FromBoolean(isDefault));
+            content.Add("legacy_first_name", OSD.FromString(first));
+            content.Add("legacy_last_name", OSD.FromString(last));
+            content.Add("username", OSD.FromString(account));
+
+            body.Add("content", content);
+            body.Add("agent", agentData);
+            //body.Add ("old_display_name", OSD.FromString (oldDisplayName));
+            body.Add("reason", OSD.FromString("OK"));
+            body.Add("status", OSD.FromInteger(200));
+
+            nameReply.Add("body", body);
+            nameReply.Add("message", OSD.FromString("SetDisplayNameReply"));
+
+            return nameReply;
+        }
+
+        public void SetDisplayNameReply(string newDisplayName, string oldDisplayName, NameInfo nameInfo, DateTime nextUpdate)
+        {
+            if (EventQueue != null)
+            {
+                if (string.IsNullOrWhiteSpace(newDisplayName))
+                    newDisplayName = m_TrimResident && nameInfo.LastName.ToLower() == "resident" ? newDisplayName = nameInfo.FirstName : nameInfo.Name;
+
+                OSD item = DisplayNameReply(newDisplayName, oldDisplayName, m_AgentID, nameInfo.IsDefault,
+                                            nameInfo.FirstName, nameInfo.LastName, m_TrimResident ? nameInfo.UserName : getUserName(nameInfo.FirstName, nameInfo.LastName), nextUpdate);
+
+                EventQueue.Enqueue(item, m_AgentID);
+            }
+        }
+        #endregion
     }
 
     public class AssetUploader

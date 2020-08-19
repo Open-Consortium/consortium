@@ -50,6 +50,9 @@ namespace OpenSim.Services.Interfaces
         public DateTime Login;
         public DateTime Logout;
 
+        public string DisplayName = string.Empty;
+        public DateTime NameCached;
+
         public GridUserInfo() {}
 
         public GridUserInfo(Dictionary<string, object> kvp)
@@ -78,6 +81,10 @@ namespace OpenSim.Services.Interfaces
             if (kvp.ContainsKey("Online"))
                 Boolean.TryParse(kvp["Online"].ToString(), out Online);
 
+            if (kvp.ContainsKey("DisplayName"))
+                DisplayName = kvp["DisplayName"].ToString();
+            if (kvp.ContainsKey("NameCached"))
+                DateTime.TryParse(kvp["NameCached"].ToString(), out NameCached);
         }
 
         public virtual Dictionary<string, object> ToKeyValuePairs()
@@ -96,6 +103,9 @@ namespace OpenSim.Services.Interfaces
             result["Online"] = Online.ToString();
             result["Login"] = Login.ToString();
             result["Logout"] = Logout.ToString();
+
+            result["DisplayName"] = DisplayName;
+            result["NameCached"] = NameCached.ToString();
 
             return result;
         }
@@ -129,7 +139,9 @@ namespace OpenSim.Services.Interfaces
         /// <returns>True if the user's last position was successfully updated, otherwise false</returns>
         bool SetLastPosition(string userID, UUID sessionID, UUID regionID, Vector3 lastPosition, Vector3 lastLookAt);
 
+        bool SetDisplayName(string userID, string displayname);
+
         GridUserInfo GetGridUserInfo(string userID);
-        GridUserInfo[] GetGridUserInfo(string[] userID);
+        GridUserInfo[] GetGridUserInfo(string[] userID, bool update = false);
     }
 }

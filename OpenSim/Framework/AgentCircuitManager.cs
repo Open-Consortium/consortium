@@ -155,6 +155,7 @@ namespace OpenSim.Framework
             {
                 ac.firstname = agentData.firstname;
                 ac.lastname = agentData.lastname;
+                ac.displayname = agentData.displayname;
                 ac.startpos = agentData.startpos;
                 ac.startfar = agentData.startfar;
 
