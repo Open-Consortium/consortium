@@ -56,7 +56,7 @@ namespace OpenSim.Framework
 
         private EstateSettings m_estateSettings;
         private RegionSettings m_regionSettings;
-        // private IConfigSource m_configSource = null;
+        private IConfigSource m_configSource = null;
 
         public UUID originRegionID = UUID.Zero;
         public string proxyUrl = "";
@@ -137,7 +137,7 @@ namespace OpenSim.Framework
 
         public RegionInfo(string description, string filename, bool skipConsoleConfig, IConfigSource configSource, string configName)
         {
-            // m_configSource = configSource;
+            m_configSource = configSource;
             if (filename.ToLower().EndsWith(".ini"))
             {
                 if (!File.Exists(filename)) // New region config request
@@ -549,17 +549,28 @@ namespace OpenSim.Framework
 
             // InternalPort
             //
+			string str_port = "MATCHING";
             int port;
             allKeys.Remove("InternalPort");
             if (config.Contains("InternalPort"))
             {
-                port = config.GetInt("InternalPort", 9000);
+                str_port = config.GetString("InternalPort", str_port);
             }
             else
             {
-                port = Convert.ToInt32(MainConsole.Instance.Prompt("Internal port", "9000"));
-                config.Set("InternalPort", port);
+                str_port = MainConsole.Instance.Prompt("Internal port", str_port);
+                config.Set("InternalPort", str_port);
             }
+			
+			if (str_port == "MATCHING")
+            {
+                IConfig networkConfig = (IConfig)m_configSource.Configs["Network"];
+                port = networkConfig.GetInt("http_listener_port", 9000);
+            }
+            else if (!int.TryParse(str_port, out port))
+                port = 9000;
+			
+			m_httpPort = (uint)port;
             m_internalEndPoint = new IPEndPoint(address, port);
 
             // ResolveAddress
