@@ -78,11 +78,6 @@ namespace OpenSim.Region.ClientStack.Linden
         private string m_GridName = string.Empty;
         private string m_GridURL = string.Empty;
 
-        private bool m_doScriptSyntax;
-
-        static private object m_scriptSyntaxLock = new object();
-        static private UUID m_scriptSyntaxID = UUID.Zero;
-        static private byte[] m_scriptSyntaxXML = null;
 
         static private string m_economyURL = null;
 
@@ -91,7 +86,6 @@ namespace OpenSim.Region.ClientStack.Linden
         public void Initialise(IConfigSource source)
         {
             IConfig config = source.Configs["SimulatorFeatures"];
-            m_doScriptSyntax = true;
             if (config != null)
             {
                 //
@@ -114,12 +108,10 @@ namespace OpenSim.Region.ClientStack.Linden
                 if (m_GridName == string.Empty)
                     m_GridName = Util.GetConfigVarFromSections<string>(
                         source, "gridname", new string[] { "GridInfo", "SimulatorFeatures" }, String.Empty);
-                m_doScriptSyntax = config.GetBoolean("ScriptSyntax", m_doScriptSyntax);
             }
 
             m_economyURL = Util.GetConfigVarFromSections<string>(source, "economy", new string[] { "Economy", "GridInfo" });
 
-            ReadScriptSyntax();
             AddDefaultFeatures();
         }
 
@@ -175,8 +167,6 @@ namespace OpenSim.Region.ClientStack.Linden
                 typesMap["prim"] = true;
                 m_features["PhysicsShapeTypes"] = typesMap;
 
-                if(m_doScriptSyntax && m_scriptSyntaxID != UUID.Zero)
-                    m_features["LSLSyntaxId"] = OSD.FromUUID(m_scriptSyntaxID);
 
                 OSDMap meshAnim = new OSDMap();
                 meshAnim["AnimatedObjectMaxTris"] = OSD.FromInteger(150000);
@@ -226,12 +216,6 @@ namespace OpenSim.Region.ClientStack.Linden
                     {
                         HandleSimulatorFeaturesRequest(request, response, agentID);
                     }));
-
-            if (m_doScriptSyntax && m_scriptSyntaxID != UUID.Zero && m_scriptSyntaxXML != null)
-            {
-                caps.RegisterSimpleHandler("LSLSyntax",
-                    new SimpleStreamHandler("/" + UUID.Random(), HandleSyntaxRequest));
-            }
         }
 
         public void AddFeature(string name, OSD value)
@@ -320,17 +304,6 @@ namespace OpenSim.Region.ClientStack.Linden
             response.StatusCode = (int)HttpStatusCode.OK;
         }
 
-        private void HandleSyntaxRequest(IOSHttpRequest request, IOSHttpResponse response)
-        {
-            if (request.HttpMethod != "GET" || m_scriptSyntaxXML == null)
-            {
-                response.StatusCode = (int)HttpStatusCode.NotFound;
-                return;
-            }
-            response.RawBuffer = m_scriptSyntaxXML;
-            response.StatusCode = (int)HttpStatusCode.OK;
-        }
-
         /// <summary>
         /// Gets the grid extra features.
         /// </summary>
@@ -376,53 +349,6 @@ namespace OpenSim.Region.ClientStack.Linden
                 return url.Replace(substring, replacement);
 
             return url;
-        }
-
-        private void ReadScriptSyntax()
-        {
-            lock(m_scriptSyntaxLock)
-            {
-                if(!m_doScriptSyntax || m_scriptSyntaxID != UUID.Zero)
-                    return;
-
-                if(!File.Exists("ScriptSyntax.xml"))
-                    return;
-
-                try
-                {
-                    using (StreamReader sr = File.OpenText("ScriptSyntax.xml"))
-                    {
-                        StringBuilder sb = new StringBuilder(400*1024);
-
-                        string s="";
-                        char[] trimc = new char[] {' ','\t', '\n', '\r'};
-
-                        s = sr.ReadLine();
-                        if(s == null)
-                            return;
-                        s = s.Trim(trimc);
-                        UUID id;
-                        if(!UUID.TryParse(s,out id))
-                            return;
-
-                        while ((s = sr.ReadLine()) != null)
-                        {
-                            s = s.Trim(trimc);
-                            if (String.IsNullOrEmpty(s) || s.StartsWith("<!--"))
-                                continue;
-                            sb.Append(s);
-                        }
-                        m_scriptSyntaxXML = Util.UTF8.GetBytes(sb.ToString());
-                        m_scriptSyntaxID = id;
-                    }
-                }
-                catch
-                {
-                    m_log.Error("[SIMULATOR FEATURES MODULE] fail read ScriptSyntax.xml file");
-                    m_scriptSyntaxID = UUID.Zero;
-                    m_scriptSyntaxXML = null;
-                }
-            }
         }
     }
 }

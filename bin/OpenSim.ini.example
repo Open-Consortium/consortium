@@ -685,6 +685,12 @@
     Cap_AvatarPickerSearch = "localhost"
     Cap_GetDisplayNames = "localhost"
 
+    ; Enable this cap if you would like your region to supply a syntax XML for scripts
+    ; You will need to configure the [LSLSyntax] section for this feature to work.
+    ; Cap_LSLSyntax = "localhost"
+
+    ; Alternatively, you could have an externally hosted syntax xml and reference the SyntaxID here
+    ; Cap_LSLSyntax = "http://lslsyntax.main.examplegrid.com/${LSLSyntax|SyntaxID}"
 
 [SimulatorFeatures]
     ;# {SearchServerURI} {} {URL of the search server} {}
@@ -1232,6 +1238,13 @@
 ;    Enabled = false
 ;    FullNames = "Test User, Foo Bar"
 ;    Surnames = "Kryztlsk"
+
+[LSLSyntax]
+    ;# {SyntaxID} {} {The UUID for your LSL Syntax} {}
+    ; SyntaxID = 00000000-0000-0000-0000-000000000000
+
+    ;# {SyntaxDir} {} {The directory for your LSL Syntax XMLs} {}
+    ; SyntaxDir = "./LSLSyntax/"
 
 [Architecture]
     ;# {Include-Architecture} {} {Choose one of the following architectures} {config-include/Standalone.ini config-include/StandaloneHypergrid.ini config-include/Grid.ini config-include/GridHypergrid.ini} config-include/Standalone.ini
