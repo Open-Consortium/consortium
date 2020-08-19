@@ -154,6 +154,12 @@ namespace OpenSim.Framework.Servers.HttpServer
             set { m_listenIPAddress = value; }
         }
 
+        public BaseHttpServer(IPAddress address, uint port)
+        {
+            m_listenIPAddress = address;
+            m_port = port;
+        }
+        
         public BaseHttpServer(uint port)
         {
             m_port = port;

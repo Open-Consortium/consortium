@@ -35,6 +35,7 @@ using OpenSim.Framework.Servers;
 using OpenSim.Framework.Servers.HttpServer;
 using log4net;
 using Nini.Config;
+using System.Net;
 
 namespace OpenSim.Server.Base
 {
@@ -43,6 +44,15 @@ namespace OpenSim.Server.Base
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private uint m_consolePort;
+
+        private IPAddress m_ipaddress = null;
+        public IPAddress IPAddress
+        {
+            get
+            {
+                return m_ipaddress;
+            }
+        }
 
         // Handle all the automagical stuff
         //
@@ -60,7 +70,11 @@ namespace OpenSim.Server.Base
                 Environment.Exit(1);
             }
 
+            string address = networkConfig.GetString("address", "0.0.0.0");
             uint port = (uint)networkConfig.GetInt("port", 0);
+
+            if (!IPAddress.TryParse(address, out m_ipaddress))
+                m_ipaddress = IPAddress.Any;
 
             if (port == 0)
             {
@@ -87,7 +101,7 @@ namespace OpenSim.Server.Base
             //
             if (!ssl_main)
             {
-                httpServer = new BaseHttpServer(port);
+                httpServer = new BaseHttpServer(m_ipaddress, port);
             }
             else
             {
@@ -137,7 +151,7 @@ namespace OpenSim.Server.Base
                 else
                 {
                     m_log.WarnFormat("[SSL]: SSL port is active but no SSL is used because external SSL was requested.");
-                    MainServer.AddHttpServer(new BaseHttpServer(https_port));
+                    MainServer.AddHttpServer(new BaseHttpServer(m_ipaddress, https_port));
                 }
             }
         }
@@ -156,7 +170,7 @@ namespace OpenSim.Server.Base
                 if (m_consolePort == 0)
                     mi.Invoke(MainConsole.Instance, new object[] { MainServer.Instance });
                 else
-                    mi.Invoke(MainConsole.Instance, new object[] { MainServer.GetHttpServer(m_consolePort) });
+                    mi.Invoke(MainConsole.Instance, new object[] { MainServer.GetHttpServer(m_consolePort, m_ipaddress) });
             }
         }
     }
