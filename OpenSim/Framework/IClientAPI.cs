@@ -1273,6 +1273,7 @@ namespace OpenSim.Framework
 
         void SendAlertMessage(string message);
         void SendAlertMessage(string message, string into);
+        void SendAlertMessage(string message, string info_msg, byte[] extra);
         void SendAgentAlertMessage(string message, bool modal);
 
         void SendLoadURL(string objectname, UUID objectID, UUID ownerID, bool groupOwned, string message, string url);
