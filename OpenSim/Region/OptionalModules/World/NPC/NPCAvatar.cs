@@ -924,6 +924,10 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         {
         }
 
+        public void SendAlertMessage(string message, string info, byte[] extra)
+        {
+        }
+
         public void SendSystemAlertMessage(string message)
         {
         }
