@@ -60,7 +60,7 @@ namespace OpenSim.Services.ExperienceService
             else firstName = cmdparams[2];
 
             if (cmdparams.Length < 4)
-                lastName = MainConsole.Instance.Prompt("Experience owner last name", "User");
+                lastName = MainConsole.Instance.Prompt("Experience owner last name", "Resident");
             else lastName = cmdparams[3];
 
             if (cmdparams.Length < 5)
