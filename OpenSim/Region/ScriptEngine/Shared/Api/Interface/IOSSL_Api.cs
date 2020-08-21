@@ -533,6 +533,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         void osTriggerSound(LSL_Integer linknum, LSL_String sound, LSL_Float volume);
         void osTriggerSoundLimited(LSL_Integer linknum, LSL_String sound, LSL_Float volume,
                  vector top_north_east, vector bottom_south_west);
+        void osTriggerSoundAtPos(LSL_String sound, vector position, LSL_Float gain);
 
         LSL_String osDetectedCountry(LSL_Integer number);
         LSL_String osGetAgentCountry(LSL_Key agentId);

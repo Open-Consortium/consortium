@@ -1307,6 +1307,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             m_OSSL_Functions.osPreloadSound(linknum, sound);
         }
 
+        public void osTriggerSoundAtPos( LSL_String sound, vector position, LSL_Float gain)
+        {
+            m_OSSL_Functions.osTriggerSoundAtPos(sound, position, gain);
+        }
+
         public LSL_String osDetectedCountry(LSL_Integer number)
         {
             return m_OSSL_Functions.osDetectedCountry(number);
