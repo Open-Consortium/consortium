@@ -72,9 +72,12 @@ namespace OpenSim.Capabilities.Handlers
 
         private IAssetService m_assetService;
 
-        public GetAssetsHandler(IAssetService assService)
+        private string m_externalURL;
+
+        public GetAssetsHandler(IAssetService assService, string external_url)
         {
             m_assetService = assService;
+            m_externalURL = external_url;
         }
 
         public void Handle(OSHttpRequest req, OSHttpResponse response, string serviceURL = null)
@@ -95,40 +98,58 @@ namespace OpenSim.Capabilities.Handlers
                 return;
 
             AssetType type = AssetType.Unknown;
+            string asset_type_str = string.Empty;
             string assetStr = string.Empty;
             foreach (KeyValuePair<string,string> kvp in queries)
             {
                 if (queryTypes.ContainsKey(kvp.Key))
                 {
+                    asset_type_str = kvp.Key;
                     type = queryTypes[kvp.Key];
                     assetStr = kvp.Value;
                     break;
                 }
             }
 
-            if(type == AssetType.Unknown)
+            if (type == AssetType.Unknown || String.IsNullOrEmpty(assetStr))
             {
                 //m_log.Warn("[GETASSET]: Unknown type: " + query);
                 m_log.Warn("[GETASSET]: Unknown type");
+                response.RawBuffer = Util.StringToBytesNoTerm("Incorrect Syntax", 20);
                 response.StatusCode = (int)HttpStatusCode.NotFound;
                 return;
             }
 
-            if (String.IsNullOrEmpty(assetStr))
+            UUID assetID;
+            if (!UUID.TryParse(assetStr, out assetID))
+            {
+                response.RawBuffer = Util.StringToBytesNoTerm("Incorrect Syntax", 20);
+                response.StatusCode = (int)HttpStatusCode.NotFound;
                 return;
+            }
 
-            UUID assetID = UUID.Zero;
-            if(!UUID.TryParse(assetStr, out assetID))
-                return;
-
-            AssetBase asset = m_assetService.Get(assetID.ToString());
+            AssetBase asset = m_assetService.GetCached(assetID.ToString());
             if (asset == null)
             {
                 if (String.IsNullOrWhiteSpace(serviceURL))
                 {
-                    // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
-                    response.StatusCode = (int)HttpStatusCode.NotFound;
-                    return;
+                    if (m_externalURL != string.Empty)
+                    {
+                        response.StatusCode = (int)HttpStatusCode.Redirect;
+                        response.AddHeader("Location", string.Format("{0}/?{1}={2}", m_externalURL, asset_type_str, assetID));
+                        response.KeepAlive = false;
+                        return;
+                    }
+
+                    asset = m_assetService.Get(assetID.ToString());
+
+                    if (asset == null)
+                    {
+                        // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
+                        response.RawBuffer = Util.StringToBytesNoTerm("Not found!", 20);
+                        response.StatusCode = (int)HttpStatusCode.NotFound;
+                        return;
+                    }
                 }
 
                 string newid = serviceURL + "/" + assetID.ToString();
@@ -136,6 +157,7 @@ namespace OpenSim.Capabilities.Handlers
                 if (asset == null)
                 {
                     // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
+                    response.RawBuffer = Util.StringToBytesNoTerm("Not found!", 20);
                     response.StatusCode = (int)HttpStatusCode.NotFound;
                     return;
                 }
