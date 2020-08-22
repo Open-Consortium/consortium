@@ -685,6 +685,9 @@
     Cap_AvatarPickerSearch = "localhost"
     Cap_GetDisplayNames = "localhost"
 
+	;# {ExternalViewerAssetURL} {} {Redirect URL for asset calls to assets NOT found in the region's cache.} {}
+	; ExternalViewerAssetURL = "http://viewerasset.main.examplegrid.com"
+
 
 [SimulatorFeatures]
     ;# {SearchServerURI} {} {URL of the search server} {}

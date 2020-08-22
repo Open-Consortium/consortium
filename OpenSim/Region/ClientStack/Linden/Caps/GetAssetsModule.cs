@@ -61,6 +61,8 @@ namespace OpenSim.Region.ClientStack.Linden
         private string m_GetMesh2URL;
         private string m_GetAssetURL;
 
+        private string m_ExternalViewerAssetURL;
+
         class APollRequest
         {
             public PollServiceAssetEventArgs thepoll;
@@ -116,6 +118,8 @@ namespace OpenSim.Region.ClientStack.Linden
             m_GetAssetURL = config.GetString("Cap_GetAsset", string.Empty);
             if (m_GetAssetURL != string.Empty)
                 m_Enabled = true;
+
+            m_ExternalViewerAssetURL = config.GetString("ExternalViewerAssetURL", string.Empty);
         }
 
         public void AddRegion(Scene pScene)
@@ -148,7 +152,7 @@ namespace OpenSim.Region.ClientStack.Linden
                 {
                     m_assetService = s.RequestModuleInterface<IAssetService>();
                     // We'll reuse the same handler for all requests.
-                    m_getAssetHandler = new GetAssetsHandler(m_assetService);
+                    m_getAssetHandler = new GetAssetsHandler(m_assetService, m_ExternalViewerAssetURL);
                 }
 
                 if (m_assetService == null)
