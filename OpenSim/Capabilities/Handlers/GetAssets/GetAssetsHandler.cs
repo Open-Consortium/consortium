@@ -111,20 +111,22 @@ namespace OpenSim.Capabilities.Handlers
                 }
             }
 
-            if(type == AssetType.Unknown)
+            if (type == AssetType.Unknown || String.IsNullOrEmpty(assetStr))
             {
                 //m_log.Warn("[GETASSET]: Unknown type: " + query);
                 m_log.Warn("[GETASSET]: Unknown type");
+                response.RawBuffer = Util.StringToBytesNoTerm("Incorrect Syntax", 20);
                 response.StatusCode = (int)HttpStatusCode.NotFound;
                 return;
             }
 
-            if (String.IsNullOrEmpty(assetStr))
+            UUID assetID;
+            if (!UUID.TryParse(assetStr, out assetID))
+            {
+                response.RawBuffer = Util.StringToBytesNoTerm("Incorrect Syntax", 20);
+                response.StatusCode = (int)HttpStatusCode.NotFound;
                 return;
-
-            UUID assetID = UUID.Zero;
-            if(!UUID.TryParse(assetStr, out assetID))
-                return;
+            }
 
             AssetBase asset = m_assetService.GetCached(assetID.ToString());
             if (asset == null)
@@ -144,6 +146,7 @@ namespace OpenSim.Capabilities.Handlers
                     if (asset == null)
                     {
                         // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
+                        response.RawBuffer = Util.StringToBytesNoTerm("Not found!", 20);
                         response.StatusCode = (int)HttpStatusCode.NotFound;
                         return;
                     }
@@ -154,6 +157,7 @@ namespace OpenSim.Capabilities.Handlers
                 if (asset == null)
                 {
                     // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
+                    response.RawBuffer = Util.StringToBytesNoTerm("Not found!", 20);
                     response.StatusCode = (int)HttpStatusCode.NotFound;
                     return;
                 }
