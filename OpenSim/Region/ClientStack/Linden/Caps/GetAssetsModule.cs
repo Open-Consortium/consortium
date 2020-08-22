@@ -115,7 +115,7 @@ namespace OpenSim.Region.ClientStack.Linden
             if (m_GetMesh2URL != string.Empty)
                 m_Enabled = true;
 
-            m_GetAssetURL = config.GetString("Cap_GetAsset", string.Empty);
+            m_GetAssetURL = config.GetString("Cap_ViewerAsset", string.Empty);
             if (m_GetAssetURL != string.Empty)
                 m_Enabled = true;
 
