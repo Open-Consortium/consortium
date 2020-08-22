@@ -814,7 +814,7 @@ namespace OpenSim.Tests.Common
         {
         }
 
-        public virtual void SendBulkUpdateInventory(InventoryNodeBase node)
+        public virtual void SendBulkUpdateInventory(InventoryNodeBase node, UUID? transactionID = null)
         {
         }
 

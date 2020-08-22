@@ -862,7 +862,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         {
         }
 
-        public virtual void SendBulkUpdateInventory(InventoryNodeBase node)
+        public virtual void SendBulkUpdateInventory(InventoryNodeBase node, UUID? transactionID = null)
         {
         }
 
