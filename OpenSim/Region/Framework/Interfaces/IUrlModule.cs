@@ -47,6 +47,6 @@ namespace OpenSim.Region.Framework.Interfaces
 
         void ScriptRemoved(UUID itemID);
         void ObjectRemoved(UUID objectID);
-        Dictionary<UUID, int> GetUrlCountForHosts();
+        int GetUrlCount(UUID groupID);
     }
 }

@@ -2150,13 +2150,14 @@ namespace OpenSim.Region.CoreModules.World.Land
                     // for this region or for somewhere else?
                     if (extLandData.RegionHandle == m_scene.RegionInfo.RegionHandle)
                     {
-                        ILandObject extLandObject = GetLandObject(extLandData.X, extLandData.Y);
+                        ILandObject extLandObject = GetLandObjectClipedXY(extLandData.X, extLandData.Y);
                         if (extLandObject == null)
                             break;
 
                         extLandData.LandData = extLandObject.LandData;
                         extLandData.RegionAccess = m_scene.RegionInfo.AccessLevel;
-                        data = extLandData;
+                        if (extLandData.LandData != null)
+                            data = extLandData;
                         break;
                     }
                     else
@@ -2165,7 +2166,8 @@ namespace OpenSim.Region.CoreModules.World.Land
                         extLandData.LandData = landService.GetLandData(m_scene.RegionInfo.ScopeID,
                                 extLandData.RegionHandle, extLandData.X, extLandData.Y,
                                 out extLandData.RegionAccess);
-                        data = extLandData;
+                        if (extLandData.LandData != null)
+                            data = extLandData;
                         break;
                     }
                 }
