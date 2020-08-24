@@ -5234,14 +5234,12 @@ namespace OpenSim.Region.Framework.Scenes
             return time;
         }
 
-        public int ScriptsMemory()
+        public bool ScriptsMemory(out int memory)
         {
+            memory = 0;
             IScriptModule[] engines = Scene.RequestModuleInterfaces<IScriptModule>();
-
             if (engines.Length == 0) // No engine at all
-                return 0;
-
-            int memory = 0;
+                return false;
 
             // get all the scripts in all parts
             SceneObjectPart[] parts = m_parts.GetArray();
@@ -5250,6 +5248,10 @@ namespace OpenSim.Region.Framework.Scenes
             {
                 scripts.AddRange(parts[i].Inventory.GetInventoryItems(InventoryType.LSL));
             }
+
+            if (scripts.Count == 0)
+                return false;
+
             // extract the UUIDs
             List<UUID> ids = new List<UUID>(scripts.Count);
             foreach (TaskInventoryItem script in scripts)
@@ -5267,7 +5269,7 @@ namespace OpenSim.Region.Framework.Scenes
                     memory += e.GetScriptsMemory(ids);
                 }
             }
-            return memory;
+            return true;
         }
 
         /// <summary>
