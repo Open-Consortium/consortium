@@ -10815,12 +10815,10 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             if (propertiesRequest.AgentData.SessionID != SessionId || propertiesRequest.AgentData.AgentID != AgentId)
                 return;
 
-            OnParcelPropertiesRequest?.Invoke((int)Math.Round(propertiesRequest.ParcelData.West),
-                                               (int)Math.Round(propertiesRequest.ParcelData.South),
-                                               (int)Math.Round(propertiesRequest.ParcelData.East),
-                                               (int)Math.Round(propertiesRequest.ParcelData.North),
-                                               propertiesRequest.ParcelData.SequenceID,
-                                               propertiesRequest.ParcelData.SnapSelection, this);
+            ParcelPropertiesRequestPacket.ParcelDataBlock pdb = propertiesRequest.ParcelData;
+            OnParcelPropertiesRequest?.Invoke((int)Math.Round(pdb.West), (int)Math.Round(pdb.South),
+                                              (int)Math.Round(pdb.East), (int)Math.Round(pdb.North),
+                                              pdb.SequenceID, pdb.SnapSelection, this);
         }
 
         private void HandleParcelDivide(Packet Pack)
@@ -11630,8 +11628,8 @@ namespace OpenSim.Region.ClientStack.LindenUDP
             }
             catch( Exception e)
             {
-                m_log.ErrorFormat("{0} HandleMapItemRequest exception: {1}", LogHeader, e.Message);
-            }
+                m_log.ErrorFormat("{0} HandleMapItemRequest exception: {1} : {2}", LogHeader, e.Message, e.StackTrace);
+            } 
         }
 
         private void HandleTransferAbort(Packet Pack)

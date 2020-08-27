@@ -788,21 +788,21 @@ namespace OpenSim.Tests.Common
         {
         }
 
-        public virtual void SendInventoryFolderDetails(UUID ownerID, UUID folderID,
-                                                       List<InventoryItemBase> items,
-                                                       List<InventoryFolderBase> folders,
-                                                       int version,
-                                                       int descendents,
-                                                       bool fetchFolders,
-                                                       bool fetchItems)
+        public void SendInventoryFolderDetails(UUID ownerID, UUID folderID,
+                                               List<InventoryItemBase> items,
+                                               List<InventoryFolderBase> folders,
+                                               int version,
+                                               int descendents,
+                                               bool fetchFolders,
+                                               bool fetchItems)
         {
         }
 
-        public virtual void SendInventoryItemDetails(InventoryItemBase[] items)
+        public void SendInventoryItemDetails(InventoryItemBase[] items)
         {
         }
 
-        public virtual void SendInventoryItemCreateUpdate(InventoryItemBase Item, uint callbackID)
+        public void SendInventoryItemCreateUpdate(InventoryItemBase Item, uint callbackID)
         {
         }
 
@@ -810,11 +810,19 @@ namespace OpenSim.Tests.Common
         {
         }
 
-        public virtual void SendRemoveInventoryItem(UUID itemID)
+        public void SendRemoveInventoryItem(UUID itemID)
         {
         }
 
-        public virtual void SendBulkUpdateInventory(InventoryNodeBase node, UUID? transactionID = null)
+        public void SendRemoveInventoryItems(UUID[] items)
+        {
+        }
+
+        public void SendBulkUpdateInventory(InventoryNodeBase node, UUID? transactionID = null)
+        {
+        }
+
+        public void SendBulkUpdateInventory(InventoryFolderBase[] folders, InventoryItemBase[] items)
         {
         }
 

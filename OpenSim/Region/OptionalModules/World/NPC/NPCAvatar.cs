@@ -846,11 +846,11 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         {
         }
 
-        public virtual void SendInventoryItemDetails(InventoryItemBase[] items)
+        public void SendInventoryItemDetails(InventoryItemBase[] items)
         {
         }
 
-        public virtual void SendInventoryItemCreateUpdate(InventoryItemBase Item, uint callbackID)
+        public void SendInventoryItemCreateUpdate(InventoryItemBase Item, uint callbackID)
         {
         }
 
@@ -858,11 +858,19 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         {
         }
 
-        public virtual void SendRemoveInventoryItem(UUID itemID)
+        public void SendRemoveInventoryItem(UUID itemID)
         {
         }
 
-        public virtual void SendBulkUpdateInventory(InventoryNodeBase node, UUID? transactionID = null)
+        public void SendRemoveInventoryItems(UUID[] items)
+        {
+        }
+
+        public void SendBulkUpdateInventory(InventoryNodeBase node, UUID? transactionID = null)
+        {
+        }
+
+        public void SendBulkUpdateInventory(InventoryFolderBase[] folders, InventoryItemBase[] items)
         {
         }
 
@@ -870,7 +878,7 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         {
         }
 
-        public virtual void SendTaskInventory(UUID taskID, short serial, byte[] fileName)
+        public void SendTaskInventory(UUID taskID, short serial, byte[] fileName)
         {
         }
 
@@ -1028,6 +1036,11 @@ namespace OpenSim.Region.OptionalModules.World.NPC
         {
             // Remove ourselves from the scene
             m_scene.RemoveClient(AgentId, false);
+        }
+
+        public void Disconnect(string reason)
+        {
+            Close(true, false);
         }
 
         public void Start()

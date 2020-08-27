@@ -79,8 +79,6 @@ namespace OpenSim.Region.CoreModules.Hypergrid
                     Util.GetConfigVarFromSections<bool>(source, "ExportMapAddScale", configSections, m_exportPrintScale);
                 m_exportPrintRegionName =
                     Util.GetConfigVarFromSections<bool>(source, "ExportMapAddRegionName", configSections, m_exportPrintRegionName);
-                m_showNPCs =
-                    Util.GetConfigVarFromSections<bool>(source, "ShowNPCs", configSections, m_showNPCs);
             }
         }
 
@@ -151,23 +149,25 @@ namespace OpenSim.Region.CoreModules.Hypergrid
         protected override List<MapBlockData> GetAndSendBlocksInternal(IClientAPI remoteClient, int minX, int minY, int maxX, int maxY, uint flag)
         {
             List<MapBlockData>  mapBlocks = base.GetAndSendBlocksInternal(remoteClient, minX, minY, maxX, maxY, flag);
-            lock (m_SeenMapBlocks)
+            if(mapBlocks.Count > 0)
             {
-                if (!m_SeenMapBlocks.ContainsKey(remoteClient.AgentId))
+                lock (m_SeenMapBlocks)
                 {
-                    m_SeenMapBlocks.Add(remoteClient.AgentId, mapBlocks);
-                }
-                else
-                {
-                    List<MapBlockData> seen = m_SeenMapBlocks[remoteClient.AgentId];
-                    List<MapBlockData> newBlocks = new List<MapBlockData>();
-                    foreach (MapBlockData b in mapBlocks)
-                        if (seen.Find(delegate(MapBlockData bdata) { return bdata.X == b.X && bdata.Y == b.Y; }) == null)
-                            newBlocks.Add(b);
-                    seen.AddRange(newBlocks);
+                    if (!m_SeenMapBlocks.ContainsKey(remoteClient.AgentId))
+                    {
+                        m_SeenMapBlocks.Add(remoteClient.AgentId, mapBlocks);
+                    }
+                    else
+                    {
+                        List<MapBlockData> seen = m_SeenMapBlocks[remoteClient.AgentId];
+                        List<MapBlockData> newBlocks = new List<MapBlockData>();
+                        foreach (MapBlockData b in mapBlocks)
+                            if (seen.Find(delegate(MapBlockData bdata) { return bdata.X == b.X && bdata.Y == b.Y; }) == null)
+                                newBlocks.Add(b);
+                        seen.AddRange(newBlocks);
+                    }
                 }
             }
-
             return mapBlocks;
         }
 
@@ -184,27 +184,6 @@ namespace OpenSim.Region.CoreModules.Hypergrid
                 ((OSDMap)extras)["map-server-url"] = m_MapImageServerURL;
 
             }
-        }
-    }
-
-    class MapArea
-    {
-        public int minX;
-        public int minY;
-        public int maxX;
-        public int maxY;
-
-        public MapArea(int mix, int miy, int max, int may)
-        {
-            minX = mix;
-            minY = miy;
-            maxX = max;
-            maxY = may;
-        }
-
-        public void Print()
-        {
-            Console.WriteLine(String.Format(" --> Area is minX={0} minY={1} minY={2} maxY={3}", minX, minY, maxY, maxY));
         }
     }
 }
