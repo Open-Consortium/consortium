@@ -72,6 +72,8 @@ namespace OpenSim.Capabilities.Handlers
             {
                 OSDArray foldersrequested = null;
                 OSD tmp = OSDParser.DeserializeLLSDXml(httpRequest.InputStream);
+                httpRequest.InputStream.Dispose();
+
                 OSDMap map = (OSDMap)tmp;
                 if(map.TryGetValue("folders", out tmp) && tmp is OSDArray)
                     foldersrequested = tmp as OSDArray;
@@ -111,7 +113,8 @@ namespace OpenSim.Capabilities.Handlers
                     }
                 }
                 foldersrequested = null;
-                tmp = null;
+                map.Clear();
+                map = null;
             }
             catch (Exception e)
             {
@@ -127,7 +130,34 @@ namespace OpenSim.Capabilities.Handlers
                     httpResponse.RawBuffer = EmptyResponse;
                     return;
                 }
+
                 StringBuilder sb = osStringBuilderCache.Acquire();
+                sb.Append("[WEB FETCH INV DESC HANDLER]: Unable to fetch folders owned by ");
+                sb.Append("Unknown");
+                sb.Append(" :");
+                int limit = 5;
+                int count = 0;
+                foreach (UUID bad in bad_folders)
+                {
+                    if (BadRequests.ContainsKey(bad))
+                        continue;
+                    sb.Append(" ");
+                    sb.Append(bad.ToString());
+                    ++count;
+                    if (--limit < 0)
+                        break;
+                }
+
+                if(count > 0)
+                {
+                    if (limit < 0)
+                        sb.Append(" ...");
+                    m_log.Warn(osStringBuilderCache.GetStringAndRelease(sb));
+                }
+                else
+                    osStringBuilderCache.Release(sb);
+
+                sb = osStringBuilderCache.Acquire();
                 sb.Append("<llsd><map><key>folders</key><array /></map><map><key>bad_folders</key><array>");
                 foreach (UUID bad in bad_folders)
                 {
@@ -137,23 +167,6 @@ namespace OpenSim.Capabilities.Handlers
                 }
                 sb.Append("</array></map></llsd>");
                 httpResponse.RawBuffer = Util.UTF8NBGetbytes(osStringBuilderCache.GetStringAndRelease(sb));
-
-                sb = osStringBuilderCache.Acquire();
-                sb.Append("[WEB FETCH INV DESC HANDLER]: Unable to fetch folders owned by ");
-                sb.Append("Unknown");
-                sb.Append(" :");
-                int limit = 9;
-                foreach (UUID bad in bad_folders)
-                {
-                    sb.Append(" ");
-                    sb.Append(bad.ToString());
-                    if (--limit < 0)
-                        break;
-                }
-                if (limit < 0)
-                    sb.Append(" ...");
-                m_log.Warn(osStringBuilderCache.GetStringAndRelease(sb));
-
                 return;
             }
 
