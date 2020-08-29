@@ -738,7 +738,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                             if (string.IsNullOrEmpty(key))
                                 sb.AppendFormat("{0}&", query[i]);
                             else
-                                sb.AppendFormat("{0} = {1}&", key, query[i]);
+                                sb.AppendFormat("{0}={1}&", key, query[i]);
                         }
                         if (sb.Length > 1)
                             sb.Remove(sb.Length - 1, 1);
