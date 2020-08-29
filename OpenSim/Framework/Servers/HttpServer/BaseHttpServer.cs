@@ -1065,6 +1065,29 @@ namespace OpenSim.Framework.Servers.HttpServer
             if(m_pollHandlers.TryGetValue(handlerKey, out oServiceEventArgs))
                 return true;
 
+            string bestMatch = null;
+            bool hasmatch = false;
+
+            lock (m_pollHandlers)
+            {
+                foreach (string pattern in m_pollHandlers.Keys)
+                {
+                    if (handlerKey.StartsWith(pattern))
+                    {
+                        if (!hasmatch || pattern.Length > bestMatch.Length)
+                        {
+                            bestMatch = pattern;
+                            hasmatch = true;
+                        }
+                    }
+                }
+            }
+            if (hasmatch)
+            {
+                oServiceEventArgs = m_pollHandlers[bestMatch];
+                return true;
+            }
+
             oServiceEventArgs = null;
             return false;
         }
