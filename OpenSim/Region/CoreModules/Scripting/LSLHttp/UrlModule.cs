@@ -239,7 +239,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                         "Too many URLs already open" });
                     return urlcode;
                 }
-                string url = "http://" + ExternalHostNameForLSL + ":" + m_HttpServer.Port.ToString() + "/lslhttp/" + urlcode.ToString() + "/";
+                string url = "http://" + ExternalHostNameForLSL + ":" + m_HttpServer.Port.ToString() + "/lslhttp/" + urlcode.ToString();
 
                 UUID groupID = host.ParentGroup.UUID;
                 UrlData urlData = new UrlData();
@@ -305,7 +305,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                         "Too many URLs already open" });
                     return urlcode;
                 }
-                string url = "https://" + ExternalHostNameForLSL + ":" + m_HttpsServer.Port.ToString() + "/lslhttps/" + urlcode.ToString() + "/";
+                string url = "https://" + ExternalHostNameForLSL + ":" + m_HttpsServer.Port.ToString() + "/lslhttps/" + urlcode.ToString();
 
                 UUID groupID = host.ParentGroup.UUID;
                 UrlData urlData = new UrlData();
@@ -507,9 +507,9 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
         protected void RemoveUrl(UrlData data)
         {
             if (data.isSsl)
-                m_HttpsServer.RemovePollServiceHTTPHandler("", "/lslhttps/"+data.urlcode.ToString()+"/");
+                m_HttpsServer.RemovePollServiceHTTPHandler("", "/lslhttps/"+data.urlcode.ToString());
             else
-                m_HttpServer.RemovePollServiceHTTPHandler("", "/lslhttp/"+data.urlcode.ToString()+"/");
+                m_HttpServer.RemovePollServiceHTTPHandler("", "/lslhttp/"+data.urlcode.ToString());
 
             if(m_countsPerSOG.TryGetValue(data.groupID, out int count))
             {
@@ -677,12 +677,12 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                     int pos2 = uri.IndexOf("/", pos1 + 1);// /lslhttp/
                     int pos3 = uri.IndexOf("/", pos2 + 1); // /lslhttp/urlcode
 
-                    string uri_tmp = uri.Substring(0, pos3 + 1);
+                    string uri_tmp = pos3 != -1 ? uri.Substring(0, pos3) : uri;
                     //HTTP server code doesn't provide us with QueryStrings
                     string pathInfo;
 
 
-                    pathInfo = uri.Substring(pos3);
+                    pathInfo = pos3 != -1 ? uri.Substring(pos3) : "";
 
                     UrlData url = null;
                     string urlkey;
