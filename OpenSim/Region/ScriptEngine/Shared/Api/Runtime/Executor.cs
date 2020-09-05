@@ -88,8 +88,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 
             path_update = 40,
 
+            experience_permissions = 45,
+            experience_permissions_denied = 46,
+
             // marks highest numbered event
-            Size = 41
+            Size = 47
         }
 
         // this is not the right place for this
@@ -140,6 +143,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 
             path_update = 1UL << 40,
 
+            experience_permissions = 1UL << 45,
+            experience_permissions_denied = 1UL << 46,
+
             anytouch = touch | touch_end | touch_start,
             anyTarget = at_target | not_at_target | at_rot_target | not_at_rot_target
         }
@@ -184,6 +190,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             {"sensor", scriptEvents.sensor},
             {"http_request", scriptEvents.http_request},
             {"path_update", scriptEvents.path_update},
+            {"experience_permissions", scriptEvents.experience_permissions},
+            {"experience_permissions_denied", scriptEvents.experience_permissions_denied},
         };
 
 
