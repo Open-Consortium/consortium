@@ -343,6 +343,7 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         private List<uint> m_lastColliders = new List<uint>();
+        private bool m_lastLandCollide;
 
         private TeleportFlags m_teleportFlags;
         public TeleportFlags TeleportFlags
@@ -5891,36 +5892,21 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        /// <summary>
-        /// Send a script event to this scene presence's attachments
-        /// </summary>
-        /// <param name="eventName">The name of the event</param>
-        /// <param name="args">The arguments for the event</param>
-        public void SendScriptEventToAttachments(string eventName, Object[] args)
+        public void SendScriptChangedEventToAttachments(Changed val)
         {
-            Util.FireAndForget(delegate(object x)
+            lock (m_attachments)
             {
-                if (m_scriptEngines.Length == 0)
-                    return;
-
-                lock (m_attachments)
+                foreach (SceneObjectGroup grp in m_attachments)
                 {
-                    foreach (SceneObjectGroup grp in m_attachments)
+                    if ((grp.ScriptEvents & scriptEvents.changed) != 0)
                     {
-                        // 16384 is CHANGED_ANIMATION
-                        //
-                        // Send this to all attachment root prims
-                        //
-                        foreach (IScriptModule m in m_scriptEngines)
+                        foreach(SceneObjectPart sop in grp.Parts)
                         {
-                            if (m == null) // No script engine loaded
-                                continue;
-
-                            m.PostObjectEvent(grp.RootPart.UUID, "changed", new Object[] { (int)Changed.ANIMATION });
+                            sop.TriggerScriptChangedEvent(val);
                         }
                     }
                 }
-            }, null, "ScenePresence.SendScriptEventToAttachments");
+            }
         }
 
         /// <summary>
@@ -6588,6 +6574,7 @@ namespace OpenSim.Region.Framework.Scenes
             return true;
         }
 
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private DetectedObject CreateDetObject(SceneObjectPart obj)
         {
             return new DetectedObject()
@@ -6604,6 +6591,7 @@ namespace OpenSim.Region.Framework.Scenes
             };
         }
 
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private DetectedObject CreateDetObject(ScenePresence av)
         {
             DetectedObject detobj = new DetectedObject()
@@ -6626,6 +6614,7 @@ namespace OpenSim.Region.Framework.Scenes
             return detobj;
         }
 
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private DetectedObject CreateDetObjectForGround()
         {
             DetectedObject detobj = new DetectedObject()
@@ -6676,15 +6665,14 @@ namespace OpenSim.Region.Framework.Scenes
 
         private delegate void ScriptCollidingNotification(uint localID, ColliderArgs message);
 
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void SendCollisionEvent(SceneObjectGroup dest, scriptEvents ev, List<uint> colliders, ScriptCollidingNotification notify)
         {
-            ColliderArgs CollidingMessage;
-
             if (colliders.Count > 0)
             {
                 if ((dest.RootPart.ScriptEvents & ev) != 0)
                 {
-                    CollidingMessage = CreateColliderArgs(dest.RootPart, colliders);
+                    ColliderArgs CollidingMessage = CreateColliderArgs(dest.RootPart, colliders);
 
                     if (CollidingMessage.Colliders.Count > 0)
                         notify(dest.RootPart.LocalId, CollidingMessage);
@@ -6692,6 +6680,7 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
         private void SendLandCollisionEvent(SceneObjectGroup dest, scriptEvents ev, ScriptCollidingNotification notify)
         {
             if ((dest.RootPart.ScriptEvents & ev) != 0)
@@ -6706,31 +6695,74 @@ namespace OpenSim.Region.Framework.Scenes
 
         private void RaiseCollisionScriptEvents(Dictionary<uint, ContactPoint> coldata)
         {
+            int nattachments = m_attachments.Count;
+            if (!ParcelAllowThisAvatarSounds && nattachments == 0)
+                return;
+
             try
             {
-                List<uint> thisHitColliders = new List<uint>();
-                List<uint> endedColliders = new List<uint>();
-                List<uint> startedColliders = new List<uint>();
+                List<SceneObjectGroup> attachements;
+                int numberCollisions = coldata.Count;
 
-                if (coldata.Count == 0)
+                if (numberCollisions == 0)
                 {
-                    if (m_lastColliders.Count == 0)
+                    if (m_lastColliders.Count == 0 && !m_lastLandCollide)
                         return; // nothing to do
 
-                    for(int i = 0; i < m_lastColliders.Count; ++i)
-                        endedColliders.Add(m_lastColliders[i]);
-
+                    if(m_attachments.Count > 0)
+                    {
+                        attachements = GetAttachments();
+                        for (int j = 0; j < attachements.Count; ++j)
+                        {
+                            SceneObjectGroup att = attachements[j];
+                            scriptEvents attev = att.RootPart.ScriptEvents;
+                            if (m_lastLandCollide && (attev & scriptEvents.land_collision_end) != 0)
+                                SendLandCollisionEvent(att, scriptEvents.land_collision_end, m_scene.EventManager.TriggerScriptLandCollidingEnd);
+                            if ((attev & scriptEvents.collision_end) != 0)
+                                SendCollisionEvent(att, scriptEvents.collision_end, m_lastColliders, m_scene.EventManager.TriggerScriptCollidingEnd);
+                        }
+                    }
+                    m_lastLandCollide = false;
                     m_lastColliders.Clear();
+                    return;
                 }
-                else
+
+                bool thisHitLand = false;
+                bool startLand = false;
+
+                List<uint> thisHitColliders = new List<uint>(numberCollisions);
+                List<uint> endedColliders = new List<uint>(m_lastColliders.Count);
+                List<uint> startedColliders = new List<uint>(numberCollisions);
+
+                if(ParcelAllowThisAvatarSounds)
                 {
                     List<CollisionForSoundInfo> soundinfolist = new List<CollisionForSoundInfo>();
-                    if(ParcelAllowThisAvatarSounds)
-                    {
-                        CollisionForSoundInfo soundinfo;
-                        ContactPoint curcontact;
+                    CollisionForSoundInfo soundinfo;
+                    ContactPoint curcontact;
 
-                        foreach (uint id in coldata.Keys)
+                    foreach (uint id in coldata.Keys)
+                    {
+                        if(id == 0)
+                        {
+                            thisHitLand = true;
+                            startLand = !m_lastLandCollide;
+                            if (startLand)
+                            {
+                                startLand = true;
+                                curcontact = coldata[id];
+                                if (Math.Abs(curcontact.RelativeSpeed) > 0.2)
+                                {
+                                    soundinfo = new CollisionForSoundInfo()
+                                    {
+                                        colliderID = id,
+                                        position = curcontact.Position,
+                                        relativeVel = curcontact.RelativeSpeed
+                                    };
+                                    soundinfolist.Add(soundinfo);
+                                }
+                            }
+                        }
+                        else
                         {
                             thisHitColliders.Add(id);
                             if (!m_lastColliders.Contains(id))
@@ -6750,58 +6782,65 @@ namespace OpenSim.Region.Framework.Scenes
                             }
                         }
                     }
-                    else
+                    if (soundinfolist.Count > 0)
+                        CollisionSounds.AvatarCollisionSound(this, soundinfolist);
+                }
+                else
+                {
+                    foreach (uint id in coldata.Keys)
                     {
-                        foreach (uint id in coldata.Keys)
+                        if (id == 0)
+                        {
+                            thisHitLand = true;
+                            startLand = !m_lastLandCollide;
+                        }
+                        else
                         {
                             thisHitColliders.Add(id);
                             if (!m_lastColliders.Contains(id))
                                 startedColliders.Add(id);
                         }
                     }
-                    // calculate things that ended colliding
-                    foreach (uint localID in m_lastColliders)
-                    {
-                        if (!thisHitColliders.Contains(localID))
-                        {
-                            endedColliders.Add(localID);
-                        }
-                    }
-                    //add the items that started colliding this time to the last colliders list.
-                    foreach (uint localID in startedColliders)
-                    {
-                        m_lastColliders.Add(localID);
-                    }
-                    // remove things that ended colliding from the last colliders list
-                    foreach (uint localID in endedColliders)
-                    {
-                        m_lastColliders.Remove(localID);
-                    }
-
-                    if (soundinfolist.Count > 0)
-                        CollisionSounds.AvatarCollisionSound(this, soundinfolist);
                 }
-                List<SceneObjectGroup> attachements = GetAttachments();
-                for (int i = 0; i< attachements.Count; ++i)
+
+                // calculate things that ended colliding
+                foreach (uint localID in m_lastColliders)
+                {
+                    if (!thisHitColliders.Contains(localID))
+                    {
+                        endedColliders.Add(localID);
+                    }
+                }
+
+                attachements = GetAttachments();
+                for (int i = 0; i < attachements.Count; ++i)
                 {
                     SceneObjectGroup att = attachements[i];
-                    SendCollisionEvent(att, scriptEvents.collision_start, startedColliders, m_scene.EventManager.TriggerScriptCollidingStart);
-                    SendCollisionEvent(att, scriptEvents.collision      , m_lastColliders , m_scene.EventManager.TriggerScriptColliding);
-                    SendCollisionEvent(att, scriptEvents.collision_end  , endedColliders  , m_scene.EventManager.TriggerScriptCollidingEnd);
+                    scriptEvents attev = att.RootPart.ScriptEvents;
+                    if ((attev & scriptEvents.anyobjcollision) != 0)
+                    {
+                        SendCollisionEvent(att, scriptEvents.collision_start, startedColliders, m_scene.EventManager.TriggerScriptCollidingStart);
+                        SendCollisionEvent(att, scriptEvents.collision      , m_lastColliders , m_scene.EventManager.TriggerScriptColliding);
+                        SendCollisionEvent(att, scriptEvents.collision_end  , endedColliders  , m_scene.EventManager.TriggerScriptCollidingEnd);
+                    }
 
-                    if (startedColliders.Contains(0))
-                        SendLandCollisionEvent(att, scriptEvents.land_collision_start, m_scene.EventManager.TriggerScriptLandCollidingStart);
-                    if (m_lastColliders.Contains(0))
-                        SendLandCollisionEvent(att, scriptEvents.land_collision, m_scene.EventManager.TriggerScriptLandColliding);
-                    if (endedColliders.Contains(0))
-                        SendLandCollisionEvent(att, scriptEvents.land_collision_end, m_scene.EventManager.TriggerScriptLandCollidingEnd);
+                    if ((attev & scriptEvents.anylandcollision) != 0)
+                    {
+                        if (thisHitLand)
+                        {
+                            if (startLand)
+                                SendLandCollisionEvent(att, scriptEvents.land_collision_start, m_scene.EventManager.TriggerScriptLandCollidingStart);
+                            SendLandCollisionEvent(att, scriptEvents.land_collision, m_scene.EventManager.TriggerScriptLandColliding);
+                        }
+                        else if (m_lastLandCollide)
+                            SendLandCollisionEvent(att, scriptEvents.land_collision_end, m_scene.EventManager.TriggerScriptLandCollidingEnd);
+                    }
                 }
+
+                m_lastLandCollide = thisHitLand;
+                m_lastColliders = thisHitColliders;
             }
             catch { }
-//            finally
-//            {
-//                m_collisionEventFlag = false;
-//            }
         }
 
         private void TeleportFlagsDebug() {

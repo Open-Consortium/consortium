@@ -6136,7 +6136,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if(item is LSL_Vector)      
                 return (LSL_Vector) item;
 
-            if (item is LSL_String)
+            if (item is LSL_String || item is string) // xengine sees string
                 return new LSL_Vector(item.ToString());
 
             return new LSL_Vector(0, 0, 0);
@@ -6163,7 +6163,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (item.GetType() == typeof(LSL_Rotation))
                 return (LSL_Rotation)item;
 
-            if (item is LSL_String)
+            if (item is LSL_String || item is string) // xengine sees string)
                 return new LSL_Rotation(src.Data[index].ToString());
 
             return new LSL_Rotation(0, 0, 0, 1);
