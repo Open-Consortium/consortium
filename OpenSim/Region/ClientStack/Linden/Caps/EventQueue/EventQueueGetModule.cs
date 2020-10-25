@@ -290,6 +290,32 @@ namespace OpenSim.Region.ClientStack.Linden
             return true;
         }
 
+        public bool Enqueue(osUTF8 o, UUID avatarID)
+        {
+            //m_log.DebugFormat("[EVENTQUEUE]: Enqueuing event for {0} in region {1}", avatarID, m_scene.RegionInfo.RegionName);
+            try
+            {
+                Queue<byte[]> queue = GetQueue(avatarID);
+                if (queue != null)
+                {
+                    lock (queue)
+                        queue.Enqueue(o.ToArray());
+                }
+                else
+                {
+                    m_log.WarnFormat(
+                            "[EVENTQUEUE]: (Enqueue) No queue found for agent {0} in region {1}",
+                            avatarID, m_scene.Name);
+                }
+            }
+            catch (NullReferenceException e)
+            {
+                m_log.Error("[EVENTQUEUE] Caught exception: " + e);
+                return false;
+            }
+            return true;
+        }
+
         #endregion
 
         private void ClientClosed(UUID agentID, Scene scene)
@@ -442,12 +468,7 @@ namespace OpenSim.Region.ClientStack.Linden
             // do nothing, in last case http server will do it
         }
 
-        private readonly byte[] EventHeader = GenEventHeader();
-
-        private static byte[] GenEventHeader()
-        {
-            return Encoding.UTF8.GetBytes("<llsd><map><key>events</key><array>");
-        }
+        private readonly byte[] EventHeader = osUTF8.GetASCIIBytes("<llsd><map><key>events</key><array>");
 
         public Hashtable GetEvents(UUID requestID, UUID pAgentId)
         {
@@ -513,11 +534,11 @@ namespace OpenSim.Region.ClientStack.Linden
 
             totalSize += EventHeader.Length;
 
-            StringBuilder sb = new StringBuilder(1024);
-            LLSDxmlEncode.AddEndArray(sb); // events array
-                LLSDxmlEncode.AddElem("id", thisID, sb);
-            LLSDxmlEncode.AddEndMap(sb);
-            element = LLSDxmlEncode.EndToNBBytes(sb);
+            osUTF8 sb = OSUTF8Cached.Acquire();
+            LLSDxmlEncode2.AddEndArray(sb); // events array
+                LLSDxmlEncode2.AddElem("id", thisID, sb);
+            LLSDxmlEncode2.AddEndMap(sb);
+            element = LLSDxmlEncode2.EndToBytes(sb);
             elements.Add(element);
             totalSize += element.Length;
 

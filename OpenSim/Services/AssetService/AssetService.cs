@@ -40,9 +40,7 @@ namespace OpenSim.Services.AssetService
 {
     public class AssetService : AssetServiceBase, IAssetService
     {
-        private static readonly ILog m_log =
-                LogManager.GetLogger(
-                MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         protected static AssetService m_RootInstance;
 
@@ -113,6 +111,11 @@ namespace OpenSim.Services.AssetService
                 m_log.ErrorFormat("[ASSET SERVICE]: Exception getting asset {0} {1}", assetID, e);
                 return null;
             }
+        }
+
+        public AssetBase Get(string id, string ForeignAssetService)
+        {
+            return null;
         }
 
         public virtual AssetBase GetCached(string id)

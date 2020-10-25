@@ -308,15 +308,12 @@ namespace OpenSim.Region.Framework.Scenes
         private int m_scriptAccessPin;
 
         private readonly Dictionary<UUID, scriptEvents> m_scriptEvents = new Dictionary<UUID, scriptEvents>();
-        private string m_sitName = String.Empty;
         private Quaternion m_sitTargetOrientation = Quaternion.Identity;
         private Vector3 m_sitTargetPosition;
         private bool m_scriptedSitOnly = false;
         private bool m_allowUnsit = true;
         private UUID m_experienceUsedForSit = UUID.Zero;
         private string m_sitAnimation = "SIT";
-        private string m_text = String.Empty;
-        private string m_touchName = String.Empty;
         private UndoRedoState m_UndoRedo = null;
         private readonly object m_UndoLock = new object();
 
@@ -355,11 +352,6 @@ namespace OpenSim.Region.Framework.Scenes
 
 
         protected bool m_isSelected = false;
-
-        /// <summary>
-        /// Stores media texture data
-        /// </summary>
-        protected string m_mediaUrl;
 
         // TODO: Those have to be changed into persistent properties at some later point,
         // or sit-camera on vehicles will break on sim-crossing.
@@ -407,12 +399,13 @@ namespace OpenSim.Region.Framework.Scenes
             m_TextureAnimation = Utils.EmptyBytes;
             m_particleSystem = Utils.EmptyBytes;
             Rezzed = DateTime.UtcNow;
-            Description = String.Empty;
+            //Description = String.Empty;
             PseudoCRC = (int)DateTime.UtcNow.Ticks; // random could be as good; fallbak if not on region db
             m_inventory = new SceneObjectPartInventory(this);
             LastColSoundSentTime = Util.EnvironmentTickCount();
         }
 
+        public static osUTF8 defaultName = new osUTF8("Object", true);
         /// <summary>
         /// Create a completely new SceneObjectPart (prim).  This will need to be added separately to a SceneObjectGroup
         /// </summary>
@@ -421,11 +414,13 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="position"></param>
         /// <param name="rotationOffset"></param>
         /// <param name="offsetPosition"></param>
+
         public SceneObjectPart(
             UUID ownerID, PrimitiveBaseShape shape, Vector3 groupPosition,
             Quaternion rotationOffset, Vector3 offsetPosition) : this()
         {
-            m_name = "Object";
+            osUTF8Name = defaultName;
+            osUTF8LargeName = defaultName;
 
             CreationDate = (int)Utils.DateTimeToUnixTime(Rezzed);
             RezzerID = LastOwnerID = CreatorID = OwnerID = ownerID;
@@ -624,18 +619,34 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
  
+        // several code still depends on large uncontroled names
+        private osUTF8 osUTF8LargeName;
         public override string Name
         {
-            get { return m_name; }
+            get
+            {
+                return osUTF8LargeName == null ? string.Empty : osUTF8LargeName.ToString();
+            }
             set
             {
-                m_name = value;
-                if(ParentGroup != null)
+                if(string.IsNullOrEmpty(value))
+                {
+                    osUTF8LargeName = null;
+                    osUTF8Name = null;
+                    PhysicsActor pa = PhysActor;
+                    if (pa != null)
+                        pa.SOPName = string.Empty;
+                }
+                else
+                {
+                    osUTF8LargeName = new osUTF8(value);
+                    osUTF8Name = new osUTF8(value, 63);
+                    PhysicsActor pa = PhysActor;
+                    if (pa != null)
+                        pa.SOPName = value;
+                }
+                if (ParentGroup != null)
                     ParentGroup.InvalidatePartsLinkMaps();
-
-                PhysicsActor pa = PhysActor;
-                if (pa != null)
-                    pa.SOPName = value;
             }
         }
 
@@ -672,7 +683,6 @@ namespace OpenSim.Region.Framework.Scenes
                 m_isSelected = value;
                 if (ParentGroup != null)
                     ParentGroup.PartSelectChanged(value);
-
             }
         }
 
@@ -1040,7 +1050,12 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        public string Description { get; set; }
+        public osUTF8 osUTF8Description;
+        public string Description
+        {
+            get {return osUTF8Description == null ? string.Empty : osUTF8Description.ToString(); }
+            set { osUTF8Description = string.IsNullOrEmpty(value) ? null : new osUTF8(value, 127);}
+        }
 
         /// <value>
         /// Text color.
@@ -1051,28 +1066,25 @@ namespace OpenSim.Region.Framework.Scenes
             set { m_color = value; }
         }
 
+        public osUTF8 osUTF8Text;
         public string Text
         {
-            get
-            {
-                if (m_text.Length > 254)
-                    return m_text.Substring(0, 254);
-                return m_text;
-            }
-            set { m_text = value; }
+            get { return osUTF8Text == null ? string.Empty : osUTF8Text.ToString(); }
+            set { osUTF8Text = string.IsNullOrEmpty(value) ? null : new osUTF8(value, 254); }
         }
 
-
+        public osUTF8 osUTF8SitName;
         public string SitName
         {
-            get { return m_sitName; }
-            set { m_sitName = value; }
+            get { return osUTF8SitName == null ? string.Empty : osUTF8SitName.ToString(); }
+            set { osUTF8SitName = string.IsNullOrEmpty(value) ? null : new osUTF8(value, 36); }
         }
 
+        public osUTF8 osUTF8TouchName;
         public string TouchName
         {
-            get { return m_touchName; }
-            set { m_touchName = value; }
+            get { return osUTF8TouchName == null ? string.Empty : osUTF8TouchName.ToString(); }
+            set { osUTF8TouchName = string.IsNullOrEmpty(value) ? null : new osUTF8(value, 36); }
         }
 
         public int LinkNum
@@ -1187,20 +1199,30 @@ namespace OpenSim.Region.Framework.Scenes
         /// Used for media on a prim.
         /// </summary>
         /// Do not change this value directly - always do it through an IMoapModule.
+        public osUTF8 osUTFMediaUrl;
         public string MediaUrl
         {
             get
             {
-                return m_mediaUrl;
+                return osUTFMediaUrl == null ? string.Empty : osUTFMediaUrl.ToString();
             }
 
             set
             {
-                string old = m_mediaUrl;
-                m_mediaUrl = value;
+                osUTF8 old = osUTFMediaUrl;
+                if (string.IsNullOrEmpty(value))
+                {
+                    osUTFMediaUrl = null;
+                    if (old != null && ParentGroup != null)
+                        ParentGroup.HasGroupChanged = true;
+                }
+                else
+                {
+                    osUTFMediaUrl = new osUTF8(value, 254);
 
-                if (ParentGroup != null && old != m_mediaUrl)
-                    ParentGroup.HasGroupChanged = true;
+                    if (ParentGroup != null && !osUTFMediaUrl.Equals(old))
+                        ParentGroup.HasGroupChanged = true;
+                }
             }
         }
 
@@ -2804,56 +2826,47 @@ namespace OpenSim.Region.Framework.Scenes
 
         private void SendCollisionEvent(scriptEvents ev, List<uint> colliders, ScriptCollidingNotification notify)
         {
-            bool sendToRoot = false;
-            ColliderArgs CollidingMessage;
-
             if (colliders.Count > 0)
             {
+                ColliderArgs CollidingMessage;
                 if ((ScriptEvents & ev) != 0)
                 {
                     CollidingMessage = CreateColliderArgs(this, colliders);
-
                     if (CollidingMessage.Colliders.Count > 0)
                         notify(LocalId, CollidingMessage);
 
-                    if (PassCollisions)
-                        sendToRoot = true;
+                    if (!PassCollisions)
+                        return;
                 }
-                else
+
+                SceneObjectPart root = ParentGroup.RootPart;
+                uint rootID = root.LocalId;
+                if (rootID != LocalId && (root.ScriptEvents & ev) != 0)
                 {
-                    if ((ParentGroup.RootPart.ScriptEvents & ev) != 0)
-                        sendToRoot = true;
-                }
-                if (sendToRoot && ParentGroup.RootPart != this)
-                {
-                    CollidingMessage = CreateColliderArgs(ParentGroup.RootPart, colliders);
+                    CollidingMessage = CreateColliderArgs(root, colliders);
                     if (CollidingMessage.Colliders.Count > 0)
-                        notify(ParentGroup.RootPart.LocalId, CollidingMessage);
+                        notify(rootID, CollidingMessage);
                 }
             }
         }
 
         private void SendLandCollisionEvent(scriptEvents ev, ScriptCollidingNotification notify)
         {
-            bool sendToRoot = true;
-
             ColliderArgs LandCollidingMessage = new ColliderArgs();
-            List<DetectedObject> colliding = new List<DetectedObject>(){CreateDetObjectForGround()};
-
-            LandCollidingMessage.Colliders = colliding;
-
-            if (Inventory.ContainsScripts())
+            LandCollidingMessage.Colliders = new List<DetectedObject>()
             {
-                if (!PassCollisions)
-                    sendToRoot = false;
-            }
+                CreateDetObjectForGround()
+            };
+
             if ((ScriptEvents & ev) != 0)
-                notify(LocalId, LandCollidingMessage);
-
-            if ((ParentGroup.RootPart.ScriptEvents & ev) != 0 && sendToRoot)
             {
-                notify(ParentGroup.RootPart.LocalId, LandCollidingMessage);
+                notify(LocalId, LandCollidingMessage);
+                if(!PassCollisions)
+                    return;
             }
+            SceneObjectPart root = ParentGroup.RootPart;
+            if(LocalId != root.LocalId && (root.ScriptEvents & ev) != 0)
+                notify(ParentGroup.RootPart.LocalId, LandCollidingMessage);
         }
 
         public void PhysicsCollision(EventArgs e)
@@ -2861,148 +2874,148 @@ namespace OpenSim.Region.Framework.Scenes
             if (ParentGroup.Scene == null || ParentGroup.IsDeleted || ParentGroup.inTransit)
                 return;
 
-            // this a thread from physics ( heartbeat )
-            bool thisHitLand = false;
-            bool startLand = false;
-            bool endedLand = false;
-
             CollisionEventUpdate a = (CollisionEventUpdate)e;
             Dictionary<uint, ContactPoint> collissionswith = a.m_objCollisionList;
-            List<uint> thisHitColliders = new List<uint>();
-            List<uint> endedColliders = new List<uint>();
-            List<uint> startedColliders = new List<uint>();
+            EventManager eventManager;
+            scriptEvents combinedEvents = ScriptEvents | ParentGroup.RootPart.ScriptEvents;
 
-            if (collissionswith.Count == 0)
+            int ncollisions = collissionswith.Count;
+            if (ncollisions == 0)
             {
                 if (m_lastColliders.Count == 0 && !m_lastLandCollide)
                     return; // nothing to do
 
-                endedLand = m_lastLandCollide;
-                m_lastLandCollide = false;
+                eventManager = ParentGroup.Scene.EventManager;
+                combinedEvents = ScriptEvents | ParentGroup.RootPart.ScriptEvents;
 
-                foreach (uint localID in m_lastColliders)
-                {
-                    endedColliders.Add(localID);
-                }
+                if (m_lastColliders.Count > 0 && (combinedEvents & scriptEvents.collision_end) != 0)
+                    SendCollisionEvent(scriptEvents.collision_end, m_lastColliders, eventManager.TriggerScriptCollidingEnd);
+
+                if (m_lastLandCollide && !VolumeDetectActive && (combinedEvents & scriptEvents.land_collision_end) != 0)
+                    SendLandCollisionEvent(scriptEvents.land_collision_end, eventManager.TriggerScriptLandCollidingEnd);
 
                 m_lastColliders.Clear();
+                m_lastLandCollide = false;
+                return;
             }
-            else
+
+            bool thisHitLand = false;
+            bool startLand = false;
+
+            List<uint> thisHitColliders = new List<uint>(ncollisions);
+            List<uint> endedColliders = new List<uint>(m_lastColliders.Count);
+            List<uint> startedColliders = new List<uint>(ncollisions);
+
+            // calculate things that started colliding this time
+            // and build up list of colliders this time
+            if (!VolumeDetectActive && CollisionSoundType >= 0)
             {
                 List<CollisionForSoundInfo> soundinfolist = new List<CollisionForSoundInfo>();
+                CollisionForSoundInfo soundinfo;
+                ContactPoint curcontact;
 
-                // calculate things that started colliding this time
-                // and build up list of colliders this time
-                if (!VolumeDetectActive && CollisionSoundType >= 0)
+                foreach (uint id in collissionswith.Keys)
                 {
-                    CollisionForSoundInfo soundinfo;
-                    ContactPoint curcontact;
-
-                    foreach (uint id in collissionswith.Keys)
+                    if(id == 0)
                     {
-                        if(id == 0)
+                        thisHitLand = true;
+                        startLand = !m_lastLandCollide;
+                        if (startLand)
                         {
-                            thisHitLand = true;
-                            if (!m_lastLandCollide)
+                            curcontact = collissionswith[id];
+                            if (Math.Abs(curcontact.RelativeSpeed) > 0.2)
                             {
-                                startLand = true;
-                                curcontact = collissionswith[id];
-                                if (Math.Abs(curcontact.RelativeSpeed) > 0.2)
+                                soundinfo = new CollisionForSoundInfo()
                                 {
-                                    soundinfo = new CollisionForSoundInfo()
-                                    {
-                                        colliderID = id,
-                                        position = curcontact.Position,
-                                        relativeVel = curcontact.RelativeSpeed
-                                    };
-                                    soundinfolist.Add(soundinfo);
-                                }
+                                    colliderID = id,
+                                    position = curcontact.Position,
+                                    relativeVel = curcontact.RelativeSpeed
+                                };
+                                soundinfolist.Add(soundinfo);
                             }
                         }
-                        else
+                    }
+                    else
+                    {
+                        thisHitColliders.Add(id);
+                        if (!m_lastColliders.Contains(id))
                         {
-                            thisHitColliders.Add(id);
-                            if (!m_lastColliders.Contains(id))
-                            {
-                                startedColliders.Add(id);
+                            startedColliders.Add(id);
 
-                                curcontact = collissionswith[id];
-                                if (Math.Abs(curcontact.RelativeSpeed) > 0.2)
+                            curcontact = collissionswith[id];
+                            if (Math.Abs(curcontact.RelativeSpeed) > 0.2)
+                            {
+                                soundinfo = new CollisionForSoundInfo()
                                 {
-                                    soundinfo = new CollisionForSoundInfo()
-                                    {
-                                        colliderID = id,
-                                        position = curcontact.Position,
-                                        relativeVel = curcontact.RelativeSpeed
-                                    };
-                                    soundinfolist.Add(soundinfo);
-                                }
+                                    colliderID = id,
+                                    position = curcontact.Position,
+                                    relativeVel = curcontact.RelativeSpeed
+                                };
+                                soundinfolist.Add(soundinfo);
                             }
                         }
                     }
                 }
-                else
-                {
-                    foreach (uint id in collissionswith.Keys)
-                    {
-                        if(id == 0)
-                        {
-                            thisHitLand = true;
-                            if (!m_lastLandCollide)
-                                startLand = true;
-                        }
-                        else
-                        {
-                            thisHitColliders.Add(id);
-                            if (!m_lastColliders.Contains(id))
-                                startedColliders.Add(id);
-                        }
-                    }
-                }
-
-                // calculate things that ended colliding
-                foreach (uint localID in m_lastColliders)
-                {
-                    if (!thisHitColliders.Contains(localID))
-                        endedColliders.Add(localID);
-                }
-
-                //add the items that started colliding this time to the last colliders list.
-                foreach (uint localID in startedColliders)
-                    m_lastColliders.Add(localID);
-
-                // remove things that ended colliding from the last colliders list
-                foreach (uint localID in endedColliders)
-                    m_lastColliders.Remove(localID);
-
-                if(m_lastLandCollide && !thisHitLand)
-                    endedLand = true;
-
-                m_lastLandCollide = thisHitLand;
-
                 // play sounds.
                 if (soundinfolist.Count > 0)
                     CollisionSounds.PartCollisionSound(this, soundinfolist);
             }
-
-            EventManager eventmanager = ParentGroup.Scene.EventManager;
-            if ((ScriptEvents & scriptEvents.anyobjcollision) != 0)
+            else
             {
-                SendCollisionEvent(scriptEvents.collision_start, startedColliders, eventmanager.TriggerScriptCollidingStart);
-                if (!VolumeDetectActive)
-                    SendCollisionEvent(scriptEvents.collision  , m_lastColliders , eventmanager.TriggerScriptColliding);
-                SendCollisionEvent(scriptEvents.collision_end  , endedColliders  , eventmanager.TriggerScriptCollidingEnd);
+                foreach (uint id in collissionswith.Keys)
+                {
+                    if(id == 0)
+                    {
+                        thisHitLand = true;
+                        startLand = !m_lastLandCollide;
+                    }
+                    else
+                    {
+                        thisHitColliders.Add(id);
+                        if (!m_lastColliders.Contains(id))
+                            startedColliders.Add(id);
+                    }
+                }
             }
 
-            if (!VolumeDetectActive && (ScriptEvents & scriptEvents.anylandcollision) != 0)
+            // calculate things that ended colliding
+            foreach (uint localID in m_lastColliders)
             {
-                if (startLand)
-                    SendLandCollisionEvent(scriptEvents.land_collision_start, eventmanager.TriggerScriptLandCollidingStart);
-                if (m_lastLandCollide)
-                    SendLandCollisionEvent(scriptEvents.land_collision, eventmanager.TriggerScriptLandColliding);
-                if (endedLand)
-                    SendLandCollisionEvent(scriptEvents.land_collision_end, eventmanager.TriggerScriptLandCollidingEnd);
+                if (!thisHitColliders.Contains(localID))
+                    endedColliders.Add(localID);
             }
+
+            eventManager = ParentGroup.Scene.EventManager;
+            combinedEvents = ScriptEvents | ParentGroup.RootPart.ScriptEvents;
+            if ((combinedEvents & scriptEvents.anyobjcollision) != 0)
+            {
+                if ((combinedEvents & scriptEvents.collision_start) != 0)
+                    SendCollisionEvent(scriptEvents.collision_start, startedColliders, eventManager.TriggerScriptCollidingStart);
+                if ((combinedEvents & scriptEvents.collision_end) != 0)
+                    SendCollisionEvent(scriptEvents.collision_end  , endedColliders  , eventManager.TriggerScriptCollidingEnd);
+            }
+
+            if (!VolumeDetectActive)
+            {
+                if ((combinedEvents & scriptEvents.collision) != 0)
+                    SendCollisionEvent(scriptEvents.collision, m_lastColliders, eventManager.TriggerScriptColliding);
+
+                if ((combinedEvents & scriptEvents.anylandcollision) != 0)
+                {
+                    if (thisHitLand)
+                    {
+                        if (startLand && (combinedEvents & scriptEvents.land_collision_start) != 0)
+                            SendLandCollisionEvent(scriptEvents.land_collision_start, eventManager.TriggerScriptLandCollidingStart);
+                        if ((combinedEvents & scriptEvents.land_collision) != 0)
+                            SendLandCollisionEvent(scriptEvents.land_collision, eventManager.TriggerScriptLandColliding);
+                    }
+                    else if(m_lastLandCollide && (combinedEvents & scriptEvents.land_collision_end) != 0)
+                        SendLandCollisionEvent(scriptEvents.land_collision_end, eventManager.TriggerScriptLandCollidingEnd);
+                }
+            }
+
+            m_lastColliders = thisHitColliders;
+            m_lastLandCollide = thisHitLand;
         }
 
         // The Collision sounds code calls this
@@ -4100,13 +4113,25 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="text"></param>
         public void SetText(string text)
         {
-            string oldtext = m_text;
-            m_text = text;
-
-            if (ParentGroup != null && oldtext != text)
+            osUTF8 old = osUTF8Text;
+            if(string.IsNullOrEmpty(text))
             {
-                ParentGroup.HasGroupChanged = true;
-                ScheduleFullUpdate();
+                osUTF8Text = null;
+                if (old != null && ParentGroup != null)
+                {
+                    ParentGroup.HasGroupChanged = true;
+                    ScheduleFullUpdate();
+                }
+            }
+            else
+            {
+                osUTF8Text = new osUTF8(text, 254);
+
+                if (ParentGroup != null && !osUTF8Text.Equals(old))
+                {
+                    ParentGroup.HasGroupChanged = true;
+                    ScheduleFullUpdate();
+                }
             }
         }
 
@@ -4119,16 +4144,29 @@ namespace OpenSim.Region.Framework.Scenes
         public void SetText(string text, Vector3 color, double alpha)
         {
             Color oldcolor = Color;
-            string oldtext = m_text;
-            Color = Color.FromArgb((int) (alpha*0xff),
-                                   (int) (color.X*0xff),
-                                   (int) (color.Y*0xff),
-                                   (int) (color.Z*0xff));
-            m_text = text;
-            if(ParentGroup != null && (oldcolor != Color || oldtext != m_text))
+
+            Color = Color.FromArgb((int) (alpha * 0xff),
+                                   (int) (color.X * 0xff),
+                                   (int) (color.Y * 0xff),
+                                   (int) (color.Z * 0xff));
+            osUTF8 old = osUTF8Text;
+            if(string.IsNullOrEmpty(text))
             {
-                ParentGroup.HasGroupChanged = true;
-                ScheduleFullUpdate();
+                osUTF8Text = null;
+                if (ParentGroup != null && (oldcolor != Color || old != null))
+                {
+                    ParentGroup.HasGroupChanged = true;
+                    ScheduleFullUpdate();
+                }
+            }
+            else
+            {
+                osUTF8Text = new osUTF8(text, 254);
+                if (ParentGroup != null && (oldcolor != Color || !osUTF8Text.Equals(old)))
+                {
+                    ParentGroup.HasGroupChanged = true;
+                    ScheduleFullUpdate();
+                }
             }
         }
 
@@ -5396,7 +5434,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void SendUpdateToClient(IClientAPI remoteClient, PrimUpdateFlags update)
         {
-            if (ParentGroup.IsDeleted)
+            if (ParentGroup.IsDeleted || !remoteClient.IsActive)
                 return;
 
             if (Animations == null)

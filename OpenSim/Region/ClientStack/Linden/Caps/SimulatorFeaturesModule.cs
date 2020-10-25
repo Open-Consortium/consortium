@@ -190,6 +190,11 @@ namespace OpenSim.Region.ClientStack.Linden
                 extrasMap["AvatarSkeleton"] = true;
                 extrasMap["AnimationSet"] = true;
 
+                extrasMap["MinSimHeight"] = Constants.MinSimulationHeight;
+                extrasMap["MaxSimHeight"] = Constants.MaxSimulationHeight;
+                extrasMap["MinHeightmap"] = Constants.MinTerrainHeightmap;
+                extrasMap["MaxHeightmap"] = Constants.MaxTerrainHeightmap;
+
                 // TODO: Take these out of here into their respective modules, like map-server-url
                 if (!string.IsNullOrWhiteSpace(m_SearchURL))
                     extrasMap["search-server-url"] = m_SearchURL;
@@ -288,6 +293,14 @@ namespace OpenSim.Region.ClientStack.Linden
             if (request.HttpMethod != "GET")
             {
                 response.StatusCode = (int)HttpStatusCode.NotFound;
+                return;
+            }
+
+            ScenePresence sp = m_scene.GetScenePresence(agentID);
+            if (sp == null)
+            {
+                response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
+                response.AddHeader("Retry-After", "5");
                 return;
             }
 

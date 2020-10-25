@@ -1321,15 +1321,15 @@ namespace OpenSim.Region.ClientStack.Linden
                     if (folder == null)
                         break;
 
-                    StringBuilder sb = LLSDxmlEncode.Start();
-                    LLSDxmlEncode.AddMap(sb);
-                    LLSDxmlEncode.AddElem("folder_id", folder.ID, sb);
-                    LLSDxmlEncode.AddElem("name", folder.Name, sb);
-                    LLSDxmlEncode.AddElem("parent_id", folder.ParentID, sb);
-                    LLSDxmlEncode.AddElem("type", folder.Type, sb);
-                    LLSDxmlEncode.AddEndMap(sb);
+                    osUTF8 sb = LLSDxmlEncode2.Start();
+                    LLSDxmlEncode2.AddMap(sb);
+                    LLSDxmlEncode2.AddElem("folder_id", folder.ID, sb);
+                    LLSDxmlEncode2.AddElem("name", folder.Name, sb);
+                    LLSDxmlEncode2.AddElem("parent_id", folder.ParentID, sb);
+                    LLSDxmlEncode2.AddElem("type", folder.Type, sb);
+                    LLSDxmlEncode2.AddEndMap(sb);
 
-                    httpResponse.RawBuffer = LLSDxmlEncode.EndToNBBytes(sb);
+                    httpResponse.RawBuffer = LLSDxmlEncode2.EndToNBBytes(sb);
                     httpResponse.StatusCode = (int)HttpStatusCode.OK;
                     return;
                 }
@@ -1540,13 +1540,13 @@ namespace OpenSim.Region.ClientStack.Linden
                 return;
             }
 
-            StringBuilder lsl = LLSDxmlEncode.Start();
+            osUTF8 lsl = LLSDxmlEncode2.Start();
             
             if(object_ids.Count == 0)
-                LLSDxmlEncode.AddEmptyMap(lsl);
+                LLSDxmlEncode2.AddEmptyMap(lsl);
             else
             {
-                LLSDxmlEncode.AddMap(lsl);
+                LLSDxmlEncode2.AddMap(lsl);
                 for (int i = 0 ; i < object_ids.Count ; i++)
                 {
                     UUID uuid = object_ids[i].AsUUID();
@@ -1554,21 +1554,21 @@ namespace OpenSim.Region.ClientStack.Linden
                     SceneObjectPart obj = m_Scene.GetSceneObjectPart(uuid);
                     if (obj != null)
                     {                  
-                        LLSDxmlEncode.AddMap(uuid.ToString(),lsl);
+                        LLSDxmlEncode2.AddMap(uuid.ToString(),lsl);
 
-                        LLSDxmlEncode.AddElem("PhysicsShapeType", obj.PhysicsShapeType, lsl);
-                        LLSDxmlEncode.AddElem("Density", obj.Density, lsl);
-                        LLSDxmlEncode.AddElem("Friction", obj.Friction, lsl);
-                        LLSDxmlEncode.AddElem("Restitution", obj.Restitution, lsl);
-                        LLSDxmlEncode.AddElem("GravityMultiplier", obj.GravityModifier, lsl);
+                        LLSDxmlEncode2.AddElem("PhysicsShapeType", obj.PhysicsShapeType, lsl);
+                        LLSDxmlEncode2.AddElem("Density", obj.Density, lsl);
+                        LLSDxmlEncode2.AddElem("Friction", obj.Friction, lsl);
+                        LLSDxmlEncode2.AddElem("Restitution", obj.Restitution, lsl);
+                        LLSDxmlEncode2.AddElem("GravityMultiplier", obj.GravityModifier, lsl);
 
-                        LLSDxmlEncode.AddEndMap(lsl);
+                        LLSDxmlEncode2.AddEndMap(lsl);
                     }
-                LLSDxmlEncode.AddEndMap(lsl);
+                LLSDxmlEncode2.AddEndMap(lsl);
                 }
             }
 
-            httpResponse.RawBuffer = LLSDxmlEncode.EndToNBBytes(lsl);
+            httpResponse.RawBuffer = LLSDxmlEncode2.EndToNBBytes(lsl);
             httpResponse.StatusCode = (int)HttpStatusCode.OK;
         }
 
@@ -1585,14 +1585,14 @@ namespace OpenSim.Region.ClientStack.Linden
                 return;
             }
 
-            StringBuilder lsl = LLSDxmlEncode.Start(512);
+            osUTF8 lsl = LLSDxmlEncode2.Start(512);
             
             if(object_ids.Count == 0)
-                LLSDxmlEncode.AddEmptyMap(lsl);
+                LLSDxmlEncode2.AddEmptyMap(lsl);
             else
             {
                 bool haveone = false;
-                LLSDxmlEncode.AddMap(lsl);
+                LLSDxmlEncode2.AddMap(lsl);
                 for (int i = 0; i < object_ids.Count; i++)
                 {
                     UUID uuid = object_ids[i].AsUUID();
@@ -1611,31 +1611,31 @@ namespace OpenSim.Region.ClientStack.Linden
 
                         grp.GetResourcesCosts(part,out linksetCost,out linksetPhysCost,out partCost,out partPhysCost);
 
-                        LLSDxmlEncode.AddMap(uuid.ToString(), lsl);
+                        LLSDxmlEncode2.AddMap(uuid.ToString(), lsl);
 
-                        LLSDxmlEncode.AddElem("linked_set_resource_cost", linksetCost, lsl);
-                        LLSDxmlEncode.AddElem("resource_cost", partCost, lsl);
-                        LLSDxmlEncode.AddElem("physics_cost", partPhysCost, lsl);
-                        LLSDxmlEncode.AddElem("linked_set_physics_cost", linksetPhysCost, lsl);
-                        LLSDxmlEncode.AddElem("resource_limiting_type", "legacy", lsl);
+                        LLSDxmlEncode2.AddElem("linked_set_resource_cost", linksetCost, lsl);
+                        LLSDxmlEncode2.AddElem("resource_cost", partCost, lsl);
+                        LLSDxmlEncode2.AddElem("physics_cost", partPhysCost, lsl);
+                        LLSDxmlEncode2.AddElem("linked_set_physics_cost", linksetPhysCost, lsl);
+                        LLSDxmlEncode2.AddElem("resource_limiting_type", "legacy", lsl);
 
-                        LLSDxmlEncode.AddEndMap(lsl);
+                        LLSDxmlEncode2.AddEndMap(lsl);
                     }
                 }
                 if(!haveone)
                 {
-                    LLSDxmlEncode.AddMap(UUID.Zero.ToString(), lsl);
-                    LLSDxmlEncode.AddElem("linked_set_resource_cost", 0, lsl);
-                    LLSDxmlEncode.AddElem("resource_cost", 0, lsl);
-                    LLSDxmlEncode.AddElem("physics_cost", 0, lsl);
-                    LLSDxmlEncode.AddElem("linked_set_physics_cost", 0, lsl);
-                    LLSDxmlEncode.AddElem("resource_limiting_type", "legacy", lsl);
-                    LLSDxmlEncode.AddEndMap(lsl);
+                    LLSDxmlEncode2.AddMap(UUID.Zero.ToString(), lsl);
+                    LLSDxmlEncode2.AddElem("linked_set_resource_cost", 0, lsl);
+                    LLSDxmlEncode2.AddElem("resource_cost", 0, lsl);
+                    LLSDxmlEncode2.AddElem("physics_cost", 0, lsl);
+                    LLSDxmlEncode2.AddElem("linked_set_physics_cost", 0, lsl);
+                    LLSDxmlEncode2.AddElem("resource_limiting_type", "legacy", lsl);
+                    LLSDxmlEncode2.AddEndMap(lsl);
                 }
-                LLSDxmlEncode.AddEndMap(lsl);
+                LLSDxmlEncode2.AddEndMap(lsl);
             }
 
-            httpResponse.RawBuffer = LLSDxmlEncode.EndToNBBytes(lsl);
+            httpResponse.RawBuffer = LLSDxmlEncode2.EndToNBBytes(lsl);
             httpResponse.StatusCode = (int)HttpStatusCode.OK;
         }
 
@@ -1686,76 +1686,76 @@ namespace OpenSim.Region.ClientStack.Linden
                             perAttPoints[attp] = new List<AttachmentScriptInfo>(){  info };
                     }
                 }
-                StringBuilder sb = LLSDxmlEncode.Start();
-                LLSDxmlEncode.AddMap(sb);
+                osUTF8 sb = LLSDxmlEncode2.Start();
+                LLSDxmlEncode2.AddMap(sb);
 
                 if (atts.Count > 0)
                 {
-                    LLSDxmlEncode.AddArray("attachments", sb);
+                    LLSDxmlEncode2.AddArray("attachments", sb);
                     foreach (KeyValuePair<byte, List<AttachmentScriptInfo>> kvp in perAttPoints)
                     {
-                        LLSDxmlEncode.AddMap(sb);
-                        LLSDxmlEncode.AddElem("location", SLUtil.GetAttachmentName(kvp.Key), sb);
-                        LLSDxmlEncode.AddArray("objects", sb);
+                        LLSDxmlEncode2.AddMap(sb);
+                        LLSDxmlEncode2.AddElem("location", SLUtil.GetAttachmentName(kvp.Key), sb);
+                        LLSDxmlEncode2.AddArray("objects", sb);
                         foreach(AttachmentScriptInfo asi in kvp.Value)
                         {
-                            LLSDxmlEncode.AddMap(sb);
-                            LLSDxmlEncode.AddElem("id", asi.id, sb);
-                            LLSDxmlEncode.AddElem("is_group_owned", (int)0, sb);
-                            LLSDxmlEncode.AddElem("location", asi.pos, sb);
-                            LLSDxmlEncode.AddElem("name", asi.name, sb);
-                            LLSDxmlEncode.AddElem("owner_id", m_AgentID, sb);
-                            LLSDxmlEncode.AddMap("resources", sb);
+                            LLSDxmlEncode2.AddMap(sb);
+                            LLSDxmlEncode2.AddElem("id", asi.id, sb);
+                            LLSDxmlEncode2.AddElem("is_group_owned", (int)0, sb);
+                            LLSDxmlEncode2.AddElem("location", asi.pos, sb);
+                            LLSDxmlEncode2.AddElem("name", asi.name, sb);
+                            LLSDxmlEncode2.AddElem("owner_id", m_AgentID, sb);
+                            LLSDxmlEncode2.AddMap("resources", sb);
                             if (asi.memory > 0)
-                                LLSDxmlEncode.AddElem("memory", asi.memory, sb);
+                                LLSDxmlEncode2.AddElem("memory", asi.memory, sb);
                             if (asi.urls > 0)
-                                LLSDxmlEncode.AddElem("urls", asi.urls, sb);
-                            LLSDxmlEncode.AddEndMap(sb);
-                            LLSDxmlEncode.AddEndMap(sb);
+                                LLSDxmlEncode2.AddElem("urls", asi.urls, sb);
+                            LLSDxmlEncode2.AddEndMap(sb);
+                            LLSDxmlEncode2.AddEndMap(sb);
                         }
-                        LLSDxmlEncode.AddEndArray(sb);
-                        LLSDxmlEncode.AddEndMap(sb);
+                        LLSDxmlEncode2.AddEndArray(sb);
+                        LLSDxmlEncode2.AddEndMap(sb);
                     }
-                    LLSDxmlEncode.AddEndArray(sb); //attachments
+                    LLSDxmlEncode2.AddEndArray(sb); //attachments
                 }
                 else
-                    LLSDxmlEncode.AddEmptyArray("attachments", sb);
+                    LLSDxmlEncode2.AddEmptyArray("attachments", sb);
 
-                LLSDxmlEncode.AddMap("summary", sb);
-                LLSDxmlEncode.AddArray("available", sb);
+                LLSDxmlEncode2.AddMap("summary", sb);
+                LLSDxmlEncode2.AddArray("available", sb);
 
                 int maxurls = totalurls <= 38? 38: totalurls; // we don't limit this
-                LLSDxmlEncode.AddMap(sb);
-                LLSDxmlEncode.AddElem("amount", maxurls, sb);
-                LLSDxmlEncode.AddElem("type", "urls", sb);
-                LLSDxmlEncode.AddEndMap(sb);
+                LLSDxmlEncode2.AddMap(sb);
+                LLSDxmlEncode2.AddElem("amount", maxurls, sb);
+                LLSDxmlEncode2.AddElem("type", "urls", sb);
+                LLSDxmlEncode2.AddEndMap(sb);
 
-                LLSDxmlEncode.AddMap(sb);
-                LLSDxmlEncode.AddElem("amount", (int)-1, sb);
-                LLSDxmlEncode.AddElem("type", "memory", sb);
-                LLSDxmlEncode.AddEndMap(sb);
+                LLSDxmlEncode2.AddMap(sb);
+                LLSDxmlEncode2.AddElem("amount", (int)-1, sb);
+                LLSDxmlEncode2.AddElem("type", "memory", sb);
+                LLSDxmlEncode2.AddEndMap(sb);
 
-                LLSDxmlEncode.AddEndArray(sb); //available
+                LLSDxmlEncode2.AddEndArray(sb); //available
 
-                LLSDxmlEncode.AddArray("used", sb);
+                LLSDxmlEncode2.AddArray("used", sb);
 
-                LLSDxmlEncode.AddMap(sb);
-                LLSDxmlEncode.AddElem("amount",totalurls, sb);
-                LLSDxmlEncode.AddElem("type", "urls", sb);
-                LLSDxmlEncode.AddEndMap(sb);
+                LLSDxmlEncode2.AddMap(sb);
+                LLSDxmlEncode2.AddElem("amount",totalurls, sb);
+                LLSDxmlEncode2.AddElem("type", "urls", sb);
+                LLSDxmlEncode2.AddEndMap(sb);
 
-                LLSDxmlEncode.AddMap(sb);
-                LLSDxmlEncode.AddElem("amount", totalmem, sb);
-                LLSDxmlEncode.AddElem("type", "memory", sb);
-                LLSDxmlEncode.AddEndMap(sb);
+                LLSDxmlEncode2.AddMap(sb);
+                LLSDxmlEncode2.AddElem("amount", totalmem, sb);
+                LLSDxmlEncode2.AddElem("type", "memory", sb);
+                LLSDxmlEncode2.AddEndMap(sb);
 
-                LLSDxmlEncode.AddEndArray(sb); //used
+                LLSDxmlEncode2.AddEndArray(sb); //used
 
-                LLSDxmlEncode.AddEndMap(sb); // summary
+                LLSDxmlEncode2.AddEndMap(sb); // summary
 
-                LLSDxmlEncode.AddEndMap(sb);
+                LLSDxmlEncode2.AddEndMap(sb);
 
-                httpResponse.RawBuffer = LLSDxmlEncode.EndToNBBytes(sb);
+                httpResponse.RawBuffer = LLSDxmlEncode2.EndToNBBytes(sb);
                 httpResponse.StatusCode = (int)HttpStatusCode.OK;
                 return;
             }
@@ -1897,8 +1897,8 @@ namespace OpenSim.Region.ClientStack.Linden
             }
             landdata = null;
 
-            StringBuilder lsl = LLSDxmlEncode.Start();
-            LLSDxmlEncode.AddMap(lsl);
+            osUTF8 lsl = LLSDxmlEncode2.Start();
+            LLSDxmlEncode2.AddMap(lsl);
 
             string baseurl = m_HostCapsObj.SSLCaps ? "https://" : "http://";
             baseurl += m_HostCapsObj.HostName + ":" + m_HostCapsObj.Port.ToString();
@@ -1909,7 +1909,7 @@ namespace OpenSim.Region.ClientStack.Linden
                     totalmem, totalurls);
             m_HostCapsObj.HttpListener.AddSimpleStreamHandler(new SimpleStreamHandler(SRSPath, srs.ScriptResourceSummaryCap));
             string SRSURL = baseurl + SRSPath;
-            LLSDxmlEncode.AddElem("ScriptResourceSummary", SRSURL, lsl);
+            LLSDxmlEncode2.AddElem("ScriptResourceSummary", SRSURL, lsl);
 
             if(showdetail)
             {
@@ -1919,11 +1919,11 @@ namespace OpenSim.Region.ClientStack.Linden
                     new ScriptResourceDetails(m_Scene, m_AgentID, m_HostCapsObj.HttpListener, SRDPath, httpRequest.RemoteIPEndPoint.Address,
                     parcelsInfo);
                 m_HostCapsObj.HttpListener.AddSimpleStreamHandler(new SimpleStreamHandler(SRDPath, srd.ScriptResourceDetailsCap));
-                LLSDxmlEncode.AddElem("ScriptResourceDetails", SRDURL, lsl);
+                LLSDxmlEncode2.AddElem("ScriptResourceDetails", SRDURL, lsl);
             }
 
-            LLSDxmlEncode.AddEndMap(lsl);
-            httpResponse.RawBuffer = LLSDxmlEncode.EndToNBBytes(lsl);
+            LLSDxmlEncode2.AddEndMap(lsl);
+            httpResponse.RawBuffer = LLSDxmlEncode2.EndToNBBytes(lsl);
             httpResponse.StatusCode = (int)HttpStatusCode.OK;
             return;
         }
@@ -1979,20 +1979,20 @@ namespace OpenSim.Region.ClientStack.Linden
                 }
             }
 
-            StringBuilder lsl = LLSDxmlEncode.Start();
-            LLSDxmlEncode.AddMap(lsl);
+            osUTF8 lsl = LLSDxmlEncode2.Start();
+            LLSDxmlEncode2.AddMap(lsl);
 
-            LLSDxmlEncode.AddMap("selected", lsl);
+            LLSDxmlEncode2.AddMap("selected", lsl);
 
-            LLSDxmlEncode.AddElem("physics", phys, lsl);
-            LLSDxmlEncode.AddElem("streaming", stream, lsl);
-            LLSDxmlEncode.AddElem("simulation", simul, lsl);
+            LLSDxmlEncode2.AddElem("physics", phys, lsl);
+            LLSDxmlEncode2.AddElem("streaming", stream, lsl);
+            LLSDxmlEncode2.AddElem("simulation", simul, lsl);
 
-            LLSDxmlEncode.AddEndMap(lsl);
-            LLSDxmlEncode.AddEndMap(lsl);
+            LLSDxmlEncode2.AddEndMap(lsl);
+            LLSDxmlEncode2.AddEndMap(lsl);
 
             // resp["transaction_id"] = "undef";
-            httpResponse.RawBuffer = LLSDxmlEncode.EndToNBBytes(lsl);
+            httpResponse.RawBuffer = LLSDxmlEncode2.EndToNBBytes(lsl);
             httpResponse.StatusCode = (int)HttpStatusCode.OK;
         }
 
@@ -2341,14 +2341,15 @@ namespace OpenSim.Region.ClientStack.Linden
             bool is_local = m_UserManager.IsLocalGridUser(m_AgentID);
             string home_uri = m_UserManager.GetUserHomeURL(m_AgentID);
             
-            StringBuilder lsl = LLSDxmlEncode.Start(names.Count * 256 + 256);
-            LLSDxmlEncode.AddMap(lsl);
+            osUTF8 lsl = LLSDxmlEncode2.Start(names.Count * 256 + 256);
+            LLSDxmlEncode2.AddMap(lsl);
+			
             int ct = 0;
             if(names.Count == 0)
-                LLSDxmlEncode.AddEmptyArray("agents", lsl);
+                LLSDxmlEncode2.AddEmptyArray("agents", lsl);
             else
             {
-                LLSDxmlEncode.AddArray("agents", lsl);
+                LLSDxmlEncode2.AddArray("agents", lsl);
 
                 foreach (KeyValuePair<UUID, NameInfo> kvp in names)
                 {
@@ -2405,24 +2406,25 @@ namespace OpenSim.Region.ClientStack.Linden
 
                     //m_log.InfoFormat("{0} {1} can change their name on {2}", nameInfo.FirstName, nameInfo.LastName, test.ToString());
 
-                    LLSDxmlEncode.AddMap(lsl);
-                    LLSDxmlEncode.AddElem("display_name_next_update", test, lsl); // fix this
-                    LLSDxmlEncode.AddElem("display_name_expires", test, lsl); // fix this
-                    LLSDxmlEncode.AddElem("display_name", displayname, lsl);
-                    LLSDxmlEncode.AddElem("legacy_first_name", firstname, lsl);
-                    LLSDxmlEncode.AddElem("legacy_last_name", lastname, lsl);
-                    LLSDxmlEncode.AddElem("username", username, lsl);
-                    LLSDxmlEncode.AddElem("id", kvp.Key, lsl);
-                    LLSDxmlEncode.AddElem("is_display_name_default", is_default_name, lsl);
-                    LLSDxmlEncode.AddEndMap(lsl);
+                    LLSDxmlEncode2.AddMap(lsl);
+                    LLSDxmlEncode2.AddElem("display_name_next_update", test, lsl); // fix this
+                    LLSDxmlEncode2.AddElem("display_name_expires", test, lsl); // fix this
+                    LLSDxmlEncode2.AddElem("display_name", displayname, lsl);
+                    LLSDxmlEncode2.AddElem("legacy_first_name", firstname, lsl);
+                    LLSDxmlEncode2.AddElem("legacy_last_name", lastname, lsl);
+                    LLSDxmlEncode2.AddElem("username", username, lsl);
+                    LLSDxmlEncode2.AddElem("id", kvp.Key, lsl);
+                    LLSDxmlEncode2.AddElem("is_display_name_default", is_default_name, lsl);
+                    LLSDxmlEncode2.AddEndMap(lsl);
+					
                     ct++;
                 }
-                LLSDxmlEncode.AddEndArray(lsl);
+                LLSDxmlEncode2.AddEndArray(lsl);
             }
         
-            LLSDxmlEncode.AddEndMap(lsl);
+            LLSDxmlEncode2.AddEndMap(lsl);
 
-            httpResponse.RawBuffer = LLSDxmlEncode.EndToNBBytes(lsl);
+            httpResponse.RawBuffer = LLSDxmlEncode2.EndToNBBytes(lsl);
             httpResponse.ContentType = "application/llsd+xml";
             httpResponse.StatusCode = (int)HttpStatusCode.OK;
         }
@@ -2626,7 +2628,6 @@ namespace OpenSim.Region.ClientStack.Linden
         {
             private static readonly ILog m_log =
                 LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-
 
             public event UpLoadedAsset OnUpLoad;
             private UpLoadedAsset handlerUpLoad = null;
@@ -2866,42 +2867,42 @@ namespace OpenSim.Region.ClientStack.Linden
                     return;
                 }
 
-                StringBuilder sb = LLSDxmlEncode.Start();
-                LLSDxmlEncode.AddMap(sb);
+                osUTF8 sb = LLSDxmlEncode2.Start();
+                LLSDxmlEncode2.AddMap(sb);
 
-                LLSDxmlEncode.AddMap("summary", sb);
-                LLSDxmlEncode.AddArray("available", sb);
+                LLSDxmlEncode2.AddMap("summary", sb);
+                LLSDxmlEncode2.AddArray("available", sb);
 
                 int maxurls = m_urls + 5000; // we don't limit this
-                LLSDxmlEncode.AddMap(sb);
-                LLSDxmlEncode.AddElem("amount", maxurls, sb);
-                LLSDxmlEncode.AddElem("type", "urls", sb);
-                LLSDxmlEncode.AddEndMap(sb);
+                LLSDxmlEncode2.AddMap(sb);
+                LLSDxmlEncode2.AddElem("amount", maxurls, sb);
+                LLSDxmlEncode2.AddElem("type", "urls", sb);
+                LLSDxmlEncode2.AddEndMap(sb);
 
-                LLSDxmlEncode.AddMap(sb);
-                LLSDxmlEncode.AddElem("amount", (int)-1, sb);
-                LLSDxmlEncode.AddElem("type", "memory", sb);
-                LLSDxmlEncode.AddEndMap(sb);
+                LLSDxmlEncode2.AddMap(sb);
+                LLSDxmlEncode2.AddElem("amount", (int)-1, sb);
+                LLSDxmlEncode2.AddElem("type", "memory", sb);
+                LLSDxmlEncode2.AddEndMap(sb);
 
-                LLSDxmlEncode.AddEndArray(sb); //available
+                LLSDxmlEncode2.AddEndArray(sb); //available
 
-                LLSDxmlEncode.AddArray("used", sb);
+                LLSDxmlEncode2.AddArray("used", sb);
 
-                LLSDxmlEncode.AddMap(sb);
-                LLSDxmlEncode.AddElem("amount", m_urls, sb);
-                LLSDxmlEncode.AddElem("type", "urls", sb);
-                LLSDxmlEncode.AddEndMap(sb);
+                LLSDxmlEncode2.AddMap(sb);
+                LLSDxmlEncode2.AddElem("amount", m_urls, sb);
+                LLSDxmlEncode2.AddElem("type", "urls", sb);
+                LLSDxmlEncode2.AddEndMap(sb);
 
-                LLSDxmlEncode.AddMap(sb);
-                LLSDxmlEncode.AddElem("amount", m_memory, sb);
-                LLSDxmlEncode.AddElem("type", "memory", sb);
-                LLSDxmlEncode.AddEndMap(sb);
+                LLSDxmlEncode2.AddMap(sb);
+                LLSDxmlEncode2.AddElem("amount", m_memory, sb);
+                LLSDxmlEncode2.AddElem("type", "memory", sb);
+                LLSDxmlEncode2.AddEndMap(sb);
 
-                LLSDxmlEncode.AddEndArray(sb); //used
+                LLSDxmlEncode2.AddEndArray(sb); //used
 
-                LLSDxmlEncode.AddEndMap(sb); // summary
-                LLSDxmlEncode.AddEndMap(sb);
-                response.RawBuffer = LLSDxmlEncode.EndToNBBytes(sb);
+                LLSDxmlEncode2.AddEndMap(sb); // summary
+                LLSDxmlEncode2.AddEndMap(sb);
+                response.RawBuffer = LLSDxmlEncode2.EndToNBBytes(sb);
                 response.StatusCode = (int)HttpStatusCode.OK;
             }
         }
@@ -2949,52 +2950,52 @@ namespace OpenSim.Region.ClientStack.Linden
                     return;
                 }
 
-                StringBuilder sb = LLSDxmlEncode.Start();
-                LLSDxmlEncode.AddMap(sb);
+                osUTF8 sb = LLSDxmlEncode2.Start();
+                LLSDxmlEncode2.AddMap(sb);
 
                 if (m_parcelsInfo.Count > 0)
                 {
-                    LLSDxmlEncode.AddArray("parcels", sb);
+                    LLSDxmlEncode2.AddArray("parcels", sb);
 
                     foreach (ParcelScriptInfo ps in m_parcelsInfo)
                     {
-                        LLSDxmlEncode.AddMap(sb);
-                        LLSDxmlEncode.AddElem("name", ps.name, sb);
-                        LLSDxmlEncode.AddElem("id", ps.id, sb);
-                        LLSDxmlEncode.AddElem("local_id", ps.localID, sb);
+                        LLSDxmlEncode2.AddMap(sb);
+                        LLSDxmlEncode2.AddElem("name", ps.name, sb);
+                        LLSDxmlEncode2.AddElem("id", ps.id, sb);
+                        LLSDxmlEncode2.AddElem("local_id", ps.localID, sb);
                         if(ps.objects.Count > 0)
                         {
-                            LLSDxmlEncode.AddArray("objects", sb);
+                            LLSDxmlEncode2.AddArray("objects", sb);
                             foreach (ScriptInfoForParcel sip in ps.objects)
                             {
-                                LLSDxmlEncode.AddMap(sb);
-                                LLSDxmlEncode.AddElem("id", sip.id, sb);
-                                LLSDxmlEncode.AddElem("is_group_owned", sip.groupOwned, sb);
-                                LLSDxmlEncode.AddElem("location", sip.pos, sb);
-                                LLSDxmlEncode.AddElem("name", sip.name, sb);
-                                LLSDxmlEncode.AddElem("owner_id", sip.owner, sb);
+                                LLSDxmlEncode2.AddMap(sb);
+                                LLSDxmlEncode2.AddElem("id", sip.id, sb);
+                                LLSDxmlEncode2.AddElem("is_group_owned", sip.groupOwned, sb);
+                                LLSDxmlEncode2.AddElem("location", sip.pos, sb);
+                                LLSDxmlEncode2.AddElem("name", sip.name, sb);
+                                LLSDxmlEncode2.AddElem("owner_id", sip.owner, sb);
 
-                                LLSDxmlEncode.AddMap("resources", sb);
-                                    LLSDxmlEncode.AddElem("memory", sip.memory, sb);
-                                    LLSDxmlEncode.AddElem("urls", sip.urls, sb);
-                                LLSDxmlEncode.AddEndMap(sb);
+                                LLSDxmlEncode2.AddMap("resources", sb);
+                                    LLSDxmlEncode2.AddElem("memory", sip.memory, sb);
+                                    LLSDxmlEncode2.AddElem("urls", sip.urls, sb);
+                                LLSDxmlEncode2.AddEndMap(sb);
 
-                                LLSDxmlEncode.AddEndMap(sb);
+                                LLSDxmlEncode2.AddEndMap(sb);
                             }
-                            LLSDxmlEncode.AddEndArray(sb);
+                            LLSDxmlEncode2.AddEndArray(sb);
                         }
                         else
-                            LLSDxmlEncode.AddEmptyArray("objects", sb);
+                            LLSDxmlEncode2.AddEmptyArray("objects", sb);
 
-                        LLSDxmlEncode.AddEndMap(sb);
+                        LLSDxmlEncode2.AddEndMap(sb);
                     }
-                    LLSDxmlEncode.AddEndArray(sb); //parcels
+                    LLSDxmlEncode2.AddEndArray(sb); //parcels
                 }
                 else
-                    LLSDxmlEncode.AddEmptyArray("parcels", sb);
+                    LLSDxmlEncode2.AddEmptyArray("parcels", sb);
 
-                LLSDxmlEncode.AddEndMap(sb);
-                response.RawBuffer = LLSDxmlEncode.EndToNBBytes(sb);
+                LLSDxmlEncode2.AddEndMap(sb);
+                response.RawBuffer = LLSDxmlEncode2.EndToNBBytes(sb);
                 response.StatusCode = (int)HttpStatusCode.OK;
             }
         }

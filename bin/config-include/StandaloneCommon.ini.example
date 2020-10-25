@@ -36,16 +36,8 @@
     ;ConnectionString = "Server=localhost;Database=opensim;User Id=opensim; password=***;"
 
 [Hypergrid]
-    ; Uncomment the variables in this section only if you are in
+    ; Uncomment the variable GatekeeperURI to enable 
     ; Hypergrid configuration. Otherwise, ignore.
-
-    ;# {HomeURI} {Hypergrid} {The Home URL of this world} {}
-    ;; If this is a standalone world, this is the address of this instance.
-    ;; If this is a grided simulator, this is the address of the external robust server that
-    ;; runs the UserAgentsService.
-    ;; For example http://myworld.com:9000 or http://myworld.com:8002
-    ;; This is a default that can be overwritten in some sections.
-    ; HomeURI = "${Const|BaseURL}:${Const|PublicPort}"
 
     ;# {GatekeeperURI} {Hypergrid} {The URL of the gatekeeper of this world} {}
     ;; If this is a standalone world, this is the address of this instance.
@@ -55,16 +47,30 @@
     ;; This is a default that can be overwritten in some sections.
     ; GatekeeperURI = "${Const|BaseURL}:${Const|PublicPort}"
 
+    ;# {GatekeeperURIAlias} {Hypergrid} {Old hostnames (FQDN), or IPs of the gatekeeper of this world and port (default 80 or 443)} {}
+    ;; comma separated list, 
+    ;; in case there was for example a dns change, etc
+    ; GatekeeperURIAlias = myoldname.something.org, 127.0.0.1,127.0.0.1:8043
+
+    ;# {HomeURI} {Hypergrid} {The Home URL of this world} {}
+    ;; If this is a standalone world, this is the address of this instance.
+    ;; If this is a grided simulator, this is the address of the external robust server that
+    ;; runs the UserAgentsService.
+    ;; For example http://myworld.com:9000 or http://myworld.com:8002
+    ;; This is a default that can be overwritten in some sections.
+    HomeURI = "${Const|BaseURL}:${Const|PublicPort}"
+
+    ;# {HomeURIAlias} {Hypergrid} {Old hostnames (FQDN), or IPs of the gatekeeper of this world and port (default 80 or 443)} {}
+    ;; comma separated list, 
+    ;; in case there was for example a dns change, etc
+    ; HomeURIAlias = myoldname.something.org, 127.0.0.1,127.0.0.1:8043	
+
 [Modules]
-    ;; Choose one cache module and the corresponding config file, if it exists.
-    ;; Copy the config .example file into your own .ini file and alter that
-    ;; We recommend the use of the FlotsamAssetCache since this is most actively maintained.
+    ;; Asset cache module.
+    ;; Warning this is required for several region features
 
     AssetCaching = "FlotsamAssetCache"
     Include-FlotsamCache = "config-include/FlotsamCache.ini"
-
-    ;AssetCaching = "CenomeMemoryAssetCache"
-    ;Include-CenomeCache = "config-include/CenomeCache.ini"
 
     ;; Authorization is not on by default, as it depends on external php
     ;AuthorizationServices = "LocalAuthorizationServicesConnector"
@@ -108,9 +114,6 @@
     ;; Set to false to prevent export
     ExportSupported = true
 
-    ; === HG ONLY ===
-    ;; If you have this set under [Hypergrid], no need to set it here, leave it commented
-    ; GatekeeperURI="${Const|BaseURL}:${Const|PublicPort}"
 
 [LibraryModule]
     ; Set this if you want to change the name of the OpenSim Library
@@ -118,10 +121,8 @@
 
 [LoginService]
     WelcomeMessage = "Welcome, Avatar!"
-    ;; If you have Gatekeeper set under [Hypergrid], no need to set it here, leave it commented
-    ; GatekeeperURI = "${Const|BaseURL}:${Const|PublicPort}"
 
-    SRV_HomeURI = "${Const|BaseURL}:${Const|PublicPort}"
+    SRV_HomeURI = "${Hypergrid|HomeURI}"
     SRV_InventoryServerURI = "${Const|BaseURL}:${Const|PublicPort}"
     SRV_AssetServerURI = "${Const|BaseURL}:${Const|PublicPort}"
     SRV_ProfileServerURI = "${Const|BaseURL}:${Const|PublicPort}"
@@ -330,14 +331,8 @@
     ;; to block this info from being exposed.
     ; ShowUserDetailsInHGProfile = True
 
-[HGInventoryService]
-    ;; If you have this set under [Hypergrid], no need to set it here, leave it commented
-    ; HomeURI = "${Const|BaseURL}:${Const|PublicPort}"
 
 [HGAssetService]
-    ;; If you have this set under [Hypergrid], no need to set it here, leave it commented
-    ; HomeURI = "${Const|BaseURL}:${Const|PublicPort}"
-
     ;; The asset types that this grid can export to / import from other grids.
     ;; Comma separated.
     ;; Valid values are all the asset types in OpenMetaverse.AssetType, namely:
@@ -351,10 +346,6 @@
     ; DisallowImport ="LSLBytecode"
 
 [HGInventoryAccessModule]
-    ;; If you have these set under [Hypergrid], no need to set it here, leave it commented
-    ; HomeURI = "${Const|BaseURL}:${Const|PublicPort}"
-    ; GatekeeperURI = "${Const|BaseURL}:${Const|PublicPort}"
-
     ;; If you want to protect your assets from being copied by foreign visitors
     ;; uncomment the next line. You may want to do this on sims that have licensed content.
     ;; true = allow exports, false = disallow exports. True by default.
@@ -369,9 +360,7 @@
     ;LevelHGFriends = 0;
 
 [Messaging]
-    ; === HG ONLY ===
-    ;; If you have this set under [Hypergrid], no need to set it here, leave it commented
-    ; GatekeeperURI = "${Const|BaseURL}:${Const|PublicPort}"
+
 
 [EntityTransfer]
     ;; User level from which local users are allowed to HG teleport. Default 0 (all users)

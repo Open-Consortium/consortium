@@ -58,6 +58,7 @@ namespace OpenSim.Framework.Servers.HttpServer
         private static Encoding UTF8NoBOM = new System.Text.UTF8Encoding(false);
         public static PollServiceRequestManager m_pollServiceManager;
         private static object m_generalLock = new object();
+        private string HTTP404;
 
         /// <summary>
         /// This is a pending websocket request before it got an sucessful upgrade response.
@@ -100,8 +101,9 @@ namespace OpenSim.Framework.Servers.HttpServer
         protected DefaultLLSDMethod m_defaultLlsdHandler = null; // <--   Moving away from the monolithic..  and going to /registered/
         protected Dictionary<string, LLSDMethod> m_llsdHandlers         = new Dictionary<string, LLSDMethod>();
         protected Dictionary<string, GenericHTTPMethod> m_HTTPHandlers  = new Dictionary<string, GenericHTTPMethod>();
-//        protected Dictionary<string, IHttpAgentHandler> m_agentHandlers = new Dictionary<string, IHttpAgentHandler>();
+        //protected Dictionary<string, IHttpAgentHandler> m_agentHandlers = new Dictionary<string, IHttpAgentHandler>();
         protected ConcurrentDictionary<string, PollServiceEventArgs> m_pollHandlers = new ConcurrentDictionary<string, PollServiceEventArgs>();
+        protected ConcurrentDictionary<string, PollServiceEventArgs> m_pollHandlersVarPath = new ConcurrentDictionary<string, PollServiceEventArgs>();
         protected ConcurrentDictionary<string, WebSocketRequestDelegate> m_WebSocketHandlers = new ConcurrentDictionary<string, WebSocketRequestDelegate>();
 
         protected ConcurrentDictionary<string, IRequestHandler> m_streamHandlers = new ConcurrentDictionary<string, IRequestHandler>();
@@ -163,6 +165,55 @@ namespace OpenSim.Framework.Servers.HttpServer
         public BaseHttpServer(uint port)
         {
             m_port = port;
+            SetHTTP404();
+        }
+
+        public BaseHttpServer(uint port, bool ssl, string CN, string CPath, string CPass)
+        {
+            m_port = port;
+            if (ssl)
+            {
+                if (string.IsNullOrEmpty(CPath))
+                    throw new Exception("invalid main http server cert path");
+
+                if (Uri.CheckHostName(CN) == UriHostNameType.Unknown)
+                    throw new Exception("invalid main http server CN (ExternalHostName)");
+
+                m_certNames.Clear();
+                m_certIPs.Clear();
+                m_certCN = "";
+
+                m_ssl = true;
+                load_cert(CPath, CPass);
+
+                if (!CheckSSLCertHost(CN))
+                    throw new Exception("invalid main http server CN (ExternalHostName)");
+
+                m_SSLCommonName = CN;
+
+                if (m_cert.Issuer == m_cert.Subject)
+                    m_log.Warn("Self signed certificate. Clients need to allow this (some viewers debug option NoVerifySSLcert must be set to true");
+            }
+            else
+                m_ssl = false;
+
+            SetHTTP404();
+        }
+
+        public BaseHttpServer(uint port, bool ssl, string CPath, string CPass)
+        {
+            m_port = port;
+            if (ssl)
+            {
+                load_cert(CPath, CPass);
+                if (m_cert.Issuer == m_cert.Subject)
+                    m_log.Warn("Self signed certificate. Http clients need to allow this");
+                m_ssl = true;
+            }
+            else
+                m_ssl = false;
+
+            SetHTTP404();
         }
 
         public RemoteCertificateValidationCallback CertificateValidationCallback
@@ -216,50 +267,6 @@ namespace OpenSim.Framework.Servers.HttpServer
             {
                 throw new Exception("SSL cert load error");
             }
-        }
-
-        public BaseHttpServer(uint port, bool ssl, string CN, string CPath, string CPass)
-        {
-            m_port = port;
-            if (ssl)
-            {
-                if(string.IsNullOrEmpty(CPath))
-                    throw new Exception("invalid main http server cert path");
-
-                if(Uri.CheckHostName(CN) == UriHostNameType.Unknown)
-                    throw new Exception("invalid main http server CN (ExternalHostName)");
-
-                m_certNames.Clear();
-                m_certIPs.Clear();
-                m_certCN= "";
-
-                m_ssl = true;
-                load_cert(CPath, CPass);
-                
-                if(!CheckSSLCertHost(CN))
-                    throw new Exception("invalid main http server CN (ExternalHostName)");
-
-                m_SSLCommonName = CN;
-
-                if(m_cert.Issuer == m_cert.Subject )
-                    m_log.Warn("Self signed certificate. Clients need to allow this (some viewers debug option NoVerifySSLcert must be set to true");
-            }
-            else
-                m_ssl = false;
-        }
-
-        public BaseHttpServer(uint port, bool ssl, string CPath, string CPass)
-        {
-            m_port = port;
-            if (ssl)
-            {
-                load_cert(CPath, CPass);
-                if(m_cert.Issuer == m_cert.Subject )
-                    m_log.Warn("Self signed certificate. Http clients need to allow this");
-                m_ssl = true;
-            }
-            else
-                m_ssl = false;
         }
 
         static bool MatchDNS(string hostname, string dns)
@@ -518,9 +525,16 @@ namespace OpenSim.Framework.Servers.HttpServer
             return m_pollHandlers.TryAdd(args.Url, args);
         }
 
+        public bool AddPollServiceHTTPHandlerVarPath(PollServiceEventArgs args)
+        {
+            return m_pollHandlersVarPath.TryAdd(args.Url, args);
+        }
+
         public List<string> GetPollServiceHandlerKeys()
         {
-            return new List<string>(m_pollHandlers.Keys);
+            List<string> s = new List<string>(m_pollHandlers.Keys);
+            s.AddRange(m_pollHandlersVarPath.Keys);
+            return s;
         }
 
         public bool AddLLSDHandler(string path, LLSDMethod handler)
@@ -1065,27 +1079,17 @@ namespace OpenSim.Framework.Servers.HttpServer
             if(m_pollHandlers.TryGetValue(handlerKey, out oServiceEventArgs))
                 return true;
 
-            string bestMatch = null;
-            bool hasmatch = false;
-
-            lock (m_pollHandlers)
+            if(m_pollHandlersVarPath.Count > 0 && handlerKey.Length >= 45)
             {
-                foreach (string pattern in m_pollHandlers.Keys)
+                // tuned for lsl requests, the only ones that should reach this, so be strict (/lslhttp/uuid.ToString())
+                int indx = handlerKey.IndexOf('/', 44);
+                if (indx < 44) //lsl requests
                 {
-                    if (handlerKey.StartsWith(pattern))
-                    {
-                        if (!hasmatch || pattern.Length > bestMatch.Length)
-                        {
-                            bestMatch = pattern;
-                            hasmatch = true;
-                        }
-                    }
+                    if(m_pollHandlersVarPath.TryGetValue(handlerKey, out oServiceEventArgs))
+                        return true;
                 }
-            }
-            if (hasmatch)
-            {
-                oServiceEventArgs = m_pollHandlers[bestMatch];
-                return true;
+                else if(m_pollHandlersVarPath.TryGetValue(handlerKey.Substring(0, indx), out oServiceEventArgs))
+                    return true;
             }
 
             oServiceEventArgs = null;
@@ -2319,29 +2323,30 @@ namespace OpenSim.Framework.Servers.HttpServer
 
         public void RemovePollServiceHTTPHandler(string httpMethod, string path)
         {
-            m_pollHandlers.TryRemove(path, out PollServiceEventArgs dummy);
+            if(!m_pollHandlers.TryRemove(path, out PollServiceEventArgs dummy))
+                m_pollHandlersVarPath.TryRemove(path, out PollServiceEventArgs dummy2);
         }
 
         public void RemovePollServiceHTTPHandler(string path)
         {
-            m_pollHandlers.TryRemove(path, out PollServiceEventArgs dummy);
+            if(!m_pollHandlers.TryRemove(path, out PollServiceEventArgs dummy))
+                m_pollHandlersVarPath.TryRemove(path, out PollServiceEventArgs dummy2);
         }
 
-        //        public bool RemoveAgentHandler(string agent, IHttpAgentHandler handler)
-        //        {
-        //            lock (m_agentHandlers)
-        //            {
-        //                IHttpAgentHandler foundHandler;
+        //public bool RemoveAgentHandler(string agent, IHttpAgentHandler handler)
+        //{
+        //    lock (m_agentHandlers)
+        //    {
+        //      IHttpAgentHandler foundHandler;
+        //      if (m_agentHandlers.TryGetValue(agent, out foundHandler) && foundHandler == handler)
+        //      {
+        //         m_agentHandlers.Remove(agent);
+        //         return true;
+        //      }
+        //    }
         //
-        //                if (m_agentHandlers.TryGetValue(agent, out foundHandler) && foundHandler == handler)
-        //                {
-        //                    m_agentHandlers.Remove(agent);
-        //                    return true;
-        //                }
-        //            }
-        //
-        //            return false;
-        //        }
+        //    return false;
+        //}
 
         public void RemoveXmlRPCHandler(string method)
         {
@@ -2371,22 +2376,33 @@ namespace OpenSim.Framework.Servers.HttpServer
             return false;
         }
 
-        public string GetHTTP404()
-        {
-            string file = Path.Combine(".", "http_404.html");
-            if (!File.Exists(file))
-                return getDefaultHTTP404();
-
-            StreamReader sr = File.OpenText(file);
-            string result = sr.ReadToEnd();
-            sr.Close();
-            return result;
-        }
-
         // Fallback HTTP responses in case the HTTP error response files don't exist
         private static string getDefaultHTTP404()
         {
             return "<HTML><HEAD><TITLE>404 Page not found</TITLE><BODY><BR /><H1>Ooops!</H1><P>The page you requested has been obsconded with by knomes. Find hippos quick!</P></BODY></HTML>";
+        }
+
+        public void SetHTTP404()
+        {
+            string file = Path.Combine(".", "http_404.html");
+            try
+            {
+                if (File.Exists(file))
+                {
+                    using (StreamReader sr = File.OpenText(file))
+                        HTTP404 = sr.ReadToEnd();
+                    if(string.IsNullOrWhiteSpace(HTTP404))
+                        HTTP404 = getDefaultHTTP404();
+                    return;
+                }
+            }
+            catch { }
+            HTTP404 = getDefaultHTTP404();
+            }
+
+        public string GetHTTP404()
+        {
+            return HTTP404;
         }
     }
 

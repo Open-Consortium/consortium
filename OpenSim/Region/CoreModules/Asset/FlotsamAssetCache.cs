@@ -166,7 +166,6 @@ namespace OpenSim.Region.CoreModules.Asset
 
                         m_negativeCacheEnabled = assetConfig.GetBoolean("NegativeCacheEnabled", m_negativeCacheEnabled);
                         m_negativeExpiration = assetConfig.GetInt("NegativeCacheTimeout", m_negativeExpiration);
-                        
 
                         m_updateFileTimeOnCacheHit = assetConfig.GetBoolean("UpdateFileTimeOnCacheHit", m_updateFileTimeOnCacheHit);
                         m_updateFileTimeOnCacheHit &= m_FileCacheEnabled;
@@ -561,6 +560,11 @@ namespace OpenSim.Region.CoreModules.Asset
         {
             Get(id, out AssetBase asset);
             return asset;
+        }
+
+        public AssetBase Get(string id, string ForeignAssetService)
+        {
+            return null;
         }
 
         public bool Get(string id, out AssetBase asset)

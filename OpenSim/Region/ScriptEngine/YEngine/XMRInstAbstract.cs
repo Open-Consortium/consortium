@@ -638,6 +638,7 @@ namespace OpenSim.Region.ScriptEngine.Yengine
 
             callNo = sf.callNo;
             stackFrames = sf.nextSF;
+            sf.nextSF = null;
             return sf.objArray;
         }
 
@@ -1198,8 +1199,18 @@ namespace OpenSim.Region.ScriptEngine.Yengine
             return ex.Message;
         }
 
+        public static string yExceptionMessage(Exception ex)
+        {
+            return ex.Message;
+        }
+
         // Return stack trace (no type or message, just stack trace lines: at ... \n)
         public string xmrExceptionStackTrace(Exception ex)
+        {
+            return XMRExceptionStackString(ex);
+        }
+
+        public string yExceptionStackTrace(Exception ex)
         {
             return XMRExceptionStackString(ex);
         }
@@ -1210,8 +1221,18 @@ namespace OpenSim.Region.ScriptEngine.Yengine
             return ((ScriptThrownException)ex).thrown;
         }
 
+        public static object yExceptionThrownValue(Exception ex)
+        {
+            return ((ScriptThrownException)ex).thrown;
+        }
+
         // Return exception's short type name, eg, NullReferenceException, ScriptThrownException, etc.
         public static string xmrExceptionTypeName(Exception ex)
+        {
+            return ex.GetType().Name;
+        }
+
+        public static string yExceptionTypeName(Exception ex)
         {
             return ex.GetType().Name;
         }

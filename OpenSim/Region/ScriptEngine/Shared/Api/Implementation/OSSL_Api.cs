@@ -158,7 +158,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         protected IUrlModule m_UrlModule = null;
         protected ISoundModule m_SoundModule = null;
         protected IEnvironmentModule m_envModule = null;
-
+        protected IGroupsModule m_groupsModule = null;
         public void Initialize(IScriptEngine scriptEngine, SceneObjectPart host, TaskInventoryItem item)
         {
             //private init
@@ -169,6 +169,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_UrlModule = m_ScriptEngine.World.RequestModuleInterface<IUrlModule>();
             m_SoundModule = m_ScriptEngine.World.RequestModuleInterface<ISoundModule>();
             m_envModule = m_ScriptEngine.World.RequestModuleInterface<IEnvironmentModule>();
+            m_groupsModule = m_ScriptEngine.World.RequestModuleInterface<IGroupsModule>();
 
             //private init
             lock (m_OSSLLock)
@@ -1619,7 +1620,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return GetSunParam(param);
         }
 
-        public double osGetSunParam(string param)
+        public LSL_Float osGetSunParam(LSL_String param)
         {
             CheckThreatLevel();
             return GetSunParam(param);
@@ -1627,15 +1628,25 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         private double GetSunParam(string param)
         {
-            double value = 0.0;
-
-            ISunModule module = World.RequestModuleInterface<ISunModule>();
-            if (module != null)
+            param = param.ToLower();
+            switch(param)
             {
-                value = module.GetSunParameter(param);
+                case "day_length":
+                    if (m_envModule == null)
+                        return 14400;
+                    return m_envModule.GetDayLength(m_host.AbsolutePosition);
+                case "year_length":
+                    return 365;
+                case "day_night_offset":
+                    return 0;
+                case "update_interval":
+                    return 0.1;
+                case "day_time_sun_hour_scale":
+                    return 1;
+                default:
+                    break;
             }
-
-            return value;
+            return 0;
         }
 
         public void osSunSetParam(string param, double value)
@@ -1835,10 +1846,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                                     }
                                     else
                                     {
-                                        IGroupsModule groupsModule = m_ScriptEngine.World.RequestModuleInterface<IGroupsModule>();
                                         GroupMembershipData member = null;
-                                        if (groupsModule != null)
-                                            member = groupsModule.GetMembershipData(uuid, newLand.OwnerID);
+                                        if (m_groupsModule != null)
+                                            member = m_groupsModule.GetMembershipData(uuid, newLand.OwnerID);
                                         if (member == null)
                                             OSSLShoutError(string.Format("land owner is not member of the new group for parcel"));
                                         else
@@ -2638,39 +2648,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             CheckThreatLevel(ThreatLevel.Moderate, "osGetGridHomeURI");
 
-            IConfigSource config = m_ScriptEngine.ConfigSource;
-            string HomeURI = Util.GetConfigVarFromSections<string>(config, "HomeURI",
-                new string[] { "Startup", "Hypergrid" }, String.Empty);
-
-            if (!string.IsNullOrEmpty(HomeURI))
-                return HomeURI;
-
-            // Legacy. Remove soon!
-            if (config.Configs["LoginService"] != null)
-                HomeURI = config.Configs["LoginService"].GetString("SRV_HomeURI", HomeURI);
-
-            if (String.IsNullOrEmpty(HomeURI))
-                HomeURI = GridUserInfo(InfoType.Home);
-
-            return HomeURI;
+            return World.SceneGridInfo.HGHomeURLNoEndSlash;
         }
 
         public string osGetGridGatekeeperURI()
         {
             CheckThreatLevel(ThreatLevel.Moderate, "osGetGridGatekeeperURI");
 
-            IConfigSource config = m_ScriptEngine.ConfigSource;
-            string gatekeeperURI = Util.GetConfigVarFromSections<string>(config, "GatekeeperURI",
-                new string[] { "Startup", "Hypergrid" }, String.Empty);
-
-            if (!string.IsNullOrEmpty(gatekeeperURI))
-                return gatekeeperURI;
-
-            // Legacy. Remove soon!
-            if (config.Configs["GridService"] != null)
-                gatekeeperURI = config.Configs["GridService"].GetString("Gatekeeper", gatekeeperURI);
-
-            return gatekeeperURI;
+            return World.SceneGridInfo.HGGateKeeperURLNoEndSlash;
         }
 
         public string osGetGridCustom(string key)
@@ -2958,10 +2943,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             if(hostGroupID && m_host.GroupID != UUID.Zero)
             {
-                IGroupsModule groupsModule = m_ScriptEngine.World.RequestModuleInterface<IGroupsModule>();
-                if (groupsModule != null)
+                if (m_groupsModule != null)
                 {
-                    GroupMembershipData member = groupsModule.GetMembershipData(m_host.GroupID, m_host.OwnerID);
+                    GroupMembershipData member = m_groupsModule.GetMembershipData(m_host.GroupID, m_host.OwnerID);
                     if (member == null)
                     {
                         OSSLError(string.Format("osNpcCreate: the object owner is not member of the object group"));
@@ -2972,7 +2956,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
                     if((createFlags & NPCOptionsFlags.NoNPCGroup) != 0)
                     {
-                        GroupRecord grprec = groupsModule.GetGroupRecord(m_host.GroupID);
+                        GroupRecord grprec = m_groupsModule.GetGroupRecord(m_host.GroupID);
                         if(grprec != null && grprec.GroupName != "")
                             groupTitle = grprec.GroupName;
                     }
@@ -4078,27 +4062,32 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             CheckThreatLevel(ThreatLevel.VeryLow, "osInviteToGroup");
 
-            UUID agent = new UUID(agentId);
-
             // groups module is required
-            IGroupsModule groupsModule = m_ScriptEngine.World.RequestModuleInterface<IGroupsModule>();
-            if (groupsModule == null) return ScriptBaseClass.FALSE;
+            if (m_groupsModule == null)
+                return ScriptBaseClass.FALSE;
+
+            UUID agent;
+            if (!UUID.TryParse(agentId, out agent))
+                return ScriptBaseClass.FALSE;
 
             // object has to be set to a group, but not group owned
-            if (m_host.GroupID == UUID.Zero || m_host.GroupID == m_host.OwnerID) return ScriptBaseClass.FALSE;
-
-            // object owner has to be in that group and required permissions
-            GroupMembershipData member = groupsModule.GetMembershipData(m_host.GroupID, m_host.OwnerID);
-            if (member == null || (member.GroupPowers & (ulong)GroupPowers.Invite) == 0) return ScriptBaseClass.FALSE;
-
-            // check if agent is in that group already
-            //member = groupsModule.GetMembershipData(agent, m_host.GroupID, agent);
-            //if (member != null) return ScriptBaseClass.FALSE;
+            if (m_host.GroupID == UUID.Zero || m_host.GroupID == m_host.OwnerID)
+                return ScriptBaseClass.FALSE;
 
             // invited agent has to be present in this scene
-            if (World.GetScenePresence(agent) == null) return ScriptBaseClass.FALSE;
+            ScenePresence sp = World.GetScenePresence(agent);
+            if (sp == null || sp.IsNPC || sp.IsChildAgent || !sp.ControllingClient.IsActive)
+                return ScriptBaseClass.FALSE;
 
-            groupsModule.InviteGroup(null, m_host.OwnerID, m_host.GroupID, agent, UUID.Zero);
+            if (sp.ControllingClient.IsGroupMember(m_host.GroupID))
+                return 2;
+
+            // object owner needs invite power
+            ulong ownerPowers = m_groupsModule.GetFullGroupPowers(m_host.OwnerID, m_host.GroupID);
+            if ((ownerPowers & (ulong)GroupPowers.Invite) == 0)
+                return ScriptBaseClass.FALSE;
+
+            m_groupsModule.InviteGroup(null, m_host.OwnerID, m_host.GroupID, agent, UUID.Zero);
 
             return ScriptBaseClass.TRUE;
         }
@@ -4112,26 +4101,24 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             CheckThreatLevel(ThreatLevel.VeryLow, "osEjectFromGroup");
 
-            UUID agent = new UUID(agentId);
-
             // groups module is required
-            IGroupsModule groupsModule = m_ScriptEngine.World.RequestModuleInterface<IGroupsModule>();
-            if (groupsModule == null) return ScriptBaseClass.FALSE;
+            if (m_groupsModule == null)
+                return ScriptBaseClass.FALSE;
+
+            UUID agent;
+            if (!UUID.TryParse(agentId, out agent))
+                return ScriptBaseClass.FALSE;
 
             // object has to be set to a group, but not group owned
-            if (m_host.GroupID == UUID.Zero || m_host.GroupID == m_host.OwnerID) return ScriptBaseClass.FALSE;
+            if (m_host.GroupID == UUID.Zero || m_host.GroupID == m_host.OwnerID)
+                return ScriptBaseClass.FALSE;
 
-            // object owner has to be in that group and required permissions
-            GroupMembershipData member = groupsModule.GetMembershipData(m_host.GroupID, m_host.OwnerID);
-            if (member == null || (member.GroupPowers & (ulong)GroupPowers.Eject) == 0) return ScriptBaseClass.FALSE;
+            // object owner needs eject power
+            ulong ownerPowers = m_groupsModule.GetFullGroupPowers(m_host.OwnerID, m_host.GroupID);
+            if ((ownerPowers & (ulong)GroupPowers.Eject) == 0)
+                return ScriptBaseClass.FALSE;
 
-            // agent has to be in that group
-            //member = groupsModule.GetMembershipData(agent, m_host.GroupID, agent);
-            //if (member == null) return ScriptBaseClass.FALSE;
-
-            // ejectee can be offline
-
-            groupsModule.EjectGroupMember(null, m_host.OwnerID, m_host.GroupID, agent);
+            m_groupsModule.EjectGroupMember(null, m_host.OwnerID, m_host.GroupID, agent);
 
             return ScriptBaseClass.TRUE;
         }
@@ -5877,7 +5864,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 VEnv = parcel.LandData.Environment;
 
             bool changed = false;
-            if (!string.IsNullOrEmpty(daycycle) || !(daycycle == ScriptBaseClass.NULL_KEY))
+            if (!string.IsNullOrEmpty(daycycle) && (daycycle != ScriptBaseClass.NULL_KEY))
             {
 
                 UUID envID = ScriptUtils.GetAssetIdFromKeyOrItemName(m_host, daycycle);
@@ -5922,7 +5909,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             ViewerEnvironment VEnv = m_envModule.GetRegionEnvironment().Clone();
 
             bool changed = false;
-            if (!string.IsNullOrEmpty(daycycle) || !(daycycle == ScriptBaseClass.NULL_KEY))
+            if (!string.IsNullOrEmpty(daycycle) && (daycycle != ScriptBaseClass.NULL_KEY))
             {
 
                 UUID envID = ScriptUtils.GetAssetIdFromKeyOrItemName(m_host, daycycle);
@@ -5950,7 +5937,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 int ll = VEnv.DayLength;
                 VEnv.DayLength = (int)(daylen * 3600f);
-                changed = ll != VEnv.DayLength;
+                changed |= ll != VEnv.DayLength;
             }
 
             if (dayoffset >= -11.5 && dayoffset <= 11.5)
@@ -5958,8 +5945,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 int lo = VEnv.DayLength;
                 if (dayoffset <= 0)
                     dayoffset+= 24;
-                VEnv.DayLength = (int)(dayoffset * 3600f);
-                changed = lo != VEnv.DayOffset;
+                VEnv.DayOffset = (int)(dayoffset * 3600f);
+                changed |= lo != VEnv.DayOffset;
             }
 
             bool needSort = false;

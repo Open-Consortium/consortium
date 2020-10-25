@@ -2159,25 +2159,25 @@ namespace OpenSim.Region.CoreModules.World.Land
                             GridRegion info = m_scene.GridService.GetRegionByPosition(scope, (int)wx, (int)wy);
                             if (info != null)
                             {
+                                wx -= (uint)info.RegionLocX;
+                                wy -= (uint)info.RegionLocY;
+                                wx += x;
+                                wy += y;
+                                if (wx >= info.RegionSizeX || wy >= info.RegionSizeY)
+                                {
+                                    wx = x;
+                                    wy = y;
+                                }
                                 if (info.RegionHandle == myHandle)
                                 {
-                                    ILandObject l = GetLandObjectClippedXY(x, y);
+                                    ILandObject l = GetLandObjectClippedXY(wx, wy);
                                     if (l != null)
                                         parcelID = l.LandData.FakeID;
                                     else
-                                        parcelID = Util.BuildFakeParcelID(myHandle, x, y);
+                                        parcelID = Util.BuildFakeParcelID(myHandle, wx, wy);
                                 }
                                 else
                                 {
-                                    wx -= (uint)info.RegionLocX;
-                                    wy -= (uint)info.RegionLocY;
-                                    wx += x;
-                                    wy += y;
-                                    if(wx >= info.RegionSizeX || wy >= info.RegionSizeY)
-                                    {
-                                        wx = x;
-                                        wy = y;
-                                    }
                                     parcelID = Util.BuildFakeParcelID(info.RegionHandle, wx, wy);
                                 }
                             }
@@ -2212,11 +2212,11 @@ namespace OpenSim.Region.CoreModules.World.Land
             }
 
             //m_log.DebugFormat("[LAND MANAGEMENT MODULE]: Got parcelID {0} {1}", parcelID, parcelID == UUID.Zero ? args.ToString() :"");
-            StringBuilder sb = LLSDxmlEncode.Start();
-                LLSDxmlEncode.AddMap(sb);
-                  LLSDxmlEncode.AddElem("parcel_id", parcelID,sb);
-                LLSDxmlEncode.AddEndMap(sb);
-            response.RawBuffer = Util.UTF8.GetBytes(LLSDxmlEncode.End(sb));
+            osUTF8 sb = LLSDxmlEncode2.Start();
+                LLSDxmlEncode2.AddMap(sb);
+                  LLSDxmlEncode2.AddElem("parcel_id", parcelID,sb);
+                LLSDxmlEncode2.AddEndMap(sb);
+            response.RawBuffer = LLSDxmlEncode2.EndToBytes(sb);
             response.StatusCode = (int)HttpStatusCode.OK;
         }
 

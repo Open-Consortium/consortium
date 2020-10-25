@@ -98,10 +98,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                 if (string.IsNullOrEmpty(url))
                     return null;
 
-                if (!url.EndsWith("/") && !url.EndsWith("="))
-                    url = url + "/";
-
-                asset = m_scene.AssetService.Get(url + assetIDstr);
+                asset = m_scene.AssetService.Get(assetIDstr, url);
 
                 //if (asset != null)
                 //    m_log.DebugFormat("[HG ASSET MAPPER]: Fetched asset {0} of type {1} from {2} ", assetID, asset.Metadata.Type, url);
@@ -147,7 +144,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                 asset1.Data = asset.Data;
 
             string id = m_scene.AssetService.Store(asset1);
-            if (String.IsNullOrEmpty(id))
+            if (string.IsNullOrEmpty(id))
             {
                 if (verbose)
                     m_log.DebugFormat("[HG ASSET MAPPER]: Asset server {0} did not accept {1}", url, asset.ID);
@@ -169,7 +166,6 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
             to.Name        = from.Name;
             to.Temporary   = from.Temporary;
             to.Type        = from.Type;
-
         }
 
         private void AdjustIdentifiers(AssetMetadata meta)
@@ -214,12 +210,6 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
         public void Get(UUID assetID, UUID ownerID, string userAssetURL)
         {
-            // Get the item from the remote asset server onto the local AssetService
-
-            AssetMetadata meta = FetchMetadata(userAssetURL, assetID);
-            if (meta == null)
-                return;
-
             // The act of gathering UUIDs downloads some assets from the remote server
             // but not all...
             HGUuidGatherer uuidGatherer = new HGUuidGatherer(m_scene.AssetService, userAssetURL);
@@ -229,8 +219,12 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
             m_log.DebugFormat("[HG ASSET MAPPER]: Preparing to get {0} assets", uuidGatherer.GatheredUuids.Count);
             bool success = true;
             foreach (UUID uuid in uuidGatherer.GatheredUuids.Keys)
+            {
                 if (FetchAsset(userAssetURL, uuid) == null)
                     success = false;
+            }
+            if(uuidGatherer.FailedUUIDs.Count > 0)
+                success = false;
 
             // maybe all pieces got here...
             if (!success)
@@ -299,7 +293,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
 
                 asset = m_scene.AssetService.Get(idstr);
                 if (asset == null)
-                {   
+                {
                     notFound.Add(idstr);
                     continue;
                 }
@@ -332,7 +326,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                 if (sb == null)
                     sb = new StringBuilder(512);
                 i = notFound.Count;
-                sb.Append("[HG ASSET MAPPER POST]: Missing assets:\n\t");
+                sb.Append("[HG ASSET MAPPER POST]: did not find embedded UUIDs as assets:\n\t");
                 for (int j = 0; j < notFound.Count; ++j)
                 {
                     sb.Append(notFound[j]);
@@ -347,7 +341,7 @@ namespace OpenSim.Region.CoreModules.Framework.InventoryAccess
                 if (sb == null) 
                     sb = new StringBuilder(512);
                 i = existSet.Count;
-                sb.Append("[HG ASSET MAPPER POST]: Already at destination server:\n\t");
+                sb.Append("[HG ASSET MAPPER POST]: embedded assets already at destination server:\n\t");
                 foreach (UUID id in existSet)
                 {
                     sb.Append(id);

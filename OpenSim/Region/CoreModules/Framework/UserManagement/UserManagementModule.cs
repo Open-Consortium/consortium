@@ -58,8 +58,8 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
         protected IServiceThrottleModule m_ServiceThrottle;
         protected IUserAccountService m_userAccountService = null;
         protected IGridUserService m_gridUserService = null;
-        string m_ThisGatekeeperHost;
-        HashSet<string> m_ThisGateKeeperAlias = new HashSet<string>();
+        
+        protected GridInfo m_thisGridInfo;
 
         // The cache
         protected ExpiringCacheOS<UUID, UserData> m_userCacheByID = new ExpiringCacheOS<UUID, UserData>(60000);
@@ -126,7 +126,8 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                 {
                     m_Scenes.Add(scene);
                 }
-
+                if(m_thisGridInfo == null)
+                    m_thisGridInfo = scene.SceneGridInfo;
                 scene.RegisterModuleInterface<IUserManagement>(this);
                 scene.RegisterModuleInterface<IPeople>(this);
                 scene.EventManager.OnNewClient += EventManager_OnNewClient;
@@ -171,7 +172,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
             {
                 m_Scenes.Clear();
             }
-
+            m_thisGridInfo = null;
             Dispose(false);
         }
 
@@ -267,10 +268,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
 
             string host = uri.DnsSafeHost.ToLower();
 
-            if (m_ThisGatekeeperHost.Equals(host))
-                islocal = true;
-            else if (m_ThisGateKeeperAlias.Contains(host))
-                islocal = true;
+            islocal = m_thisGridInfo.IsLocalHome(host) == 1;
             return true;
         }
 
@@ -424,11 +422,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
             if(m_Scenes.Count <= 0)
                 return ret;
 
-            var missing = new List<UUID>();
-
-            // look in cache
             UserData userdata = new UserData();
-
             UUID uuid = UUID.Zero;
             foreach(string id in ids)
             {
@@ -437,10 +431,8 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                     if (GetUser(uuid, out userdata))
                         ret[uuid] = userdata.FirstName + " " + userdata.LastName;
                     else
-                        ret[uuid] = "UnknownUMM1 " + uuid.ToString();
+                        ret[uuid] = "Unknown " + uuid.ToString() + "UMM1";
                 }
-                else
-                    ret[uuid] = "UnknownUMM0 " + id;
             }
             return ret;
         }
@@ -520,8 +512,8 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                         userdata.ServerURLs = new Dictionary<string, object>();
                     }
 
-                    if (userdata.ServerURLs != null && userdata.ServerURLs.ContainsKey(serverType) && userdata.ServerURLs[serverType] != null)
-                        return userdata.ServerURLs[serverType].ToString();
+                    if (userdata.ServerURLs != null && userdata.ServerURLs.TryGetValue(serverType, out object ourl) && ourl != null)
+                        return ourl.ToString();
                 }
             }
             return string.Empty;
@@ -950,7 +942,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                     user.IsLocal = true;
                     user.HasGridUserTried = true;
                 }
-                m_userCacheByID.Add(uuid, user, expire);
+                m_userCacheByID.Add(uuid, user, isNPC ? int.MaxValue / 16 : expire);
             }
         }
 
@@ -1077,7 +1069,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                 }
                 else
                 {
-                    oldUser.FirstName = firstname.Replace(" ", ".") + "." + firstname.Replace(" ", ".");
+                    oldUser.FirstName = firstname + "." + lastname.Replace(" ", ".");
                     oldUser.LastName = "@" + uri.Authority;
                     oldUser.HomeURL = uri.AbsoluteUri;
                     oldUser.IsLocal = false;
@@ -1085,7 +1077,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
             }
             else
             {
-                oldUser.FirstName = firstname.Replace(" ", ".") + "." + firstname.Replace(" ", ".");
+                oldUser.FirstName = firstname + "." + lastname.Replace(" ", ".");
                 oldUser.LastName = "UMMM1Unknown";
                 oldUser.IsLocal = true;
                 oldUser.HomeURL = string.Empty;
@@ -1131,38 +1123,6 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
 
         protected virtual void Init(IConfigSource config)
         {
-            m_ThisGatekeeperHost = Util.GetConfigVarFromSections<string>(config, "GatekeeperURI",
-                            new string[] { "Startup", "Hypergrid", "GridService" }, String.Empty);
-            m_ThisGatekeeperHost = Util.GetConfigVarFromSections<string>(config, "Gatekeeper",
-                    new string[] { "Startup", "Hypergrid", "GridService" }, m_ThisGatekeeperHost);
-
-            string gatekeeperURIAlias = Util.GetConfigVarFromSections<string>(config, "GatekeeperURIAlias",
-                new string[] { "Startup", "Hypergrid", "GridService" }, String.Empty);
-
-            if (!string.IsNullOrWhiteSpace(m_ThisGatekeeperHost))
-            {
-                try
-                {
-                    Uri uri = new Uri(m_ThisGatekeeperHost, UriKind.Absolute);
-                    m_ThisGatekeeperHost = uri.DnsSafeHost.ToLower();
-                }
-                catch
-                {
-                    m_log.Error("[UserManagementModule] Invalid grid gatekeeper");
-                    m_ThisGatekeeperHost = string.Empty;
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(gatekeeperURIAlias))
-            {
-                string[] alias = gatekeeperURIAlias.Split(',');
-                for (int i = 0; i < alias.Length; ++i)
-                {
-                    if (!string.IsNullOrWhiteSpace(alias[i]))
-                        m_ThisGateKeeperAlias.Add(alias[i].Trim().ToLower());
-                }
-            }
-
             AddUser(UUID.Zero, "Unknown", "User", false, int.MaxValue / 16);
             AddUser(Constants.m_MrOpenSimID, "Mr", "Opensim", false, int.MaxValue / 16);
             RegisterConsoleCmds();

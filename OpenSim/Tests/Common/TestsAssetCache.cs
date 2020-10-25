@@ -27,31 +27,25 @@
 
 using log4net;
 using System;
-using System.IO;
-using System.Collections.Generic;
 using System.Reflection;
-using Mono.Addins;
+using System.Runtime.Caching;
 using Nini.Config;
 using OpenSim.Framework;
 using OpenSim.Region.Framework.Interfaces;
 using OpenSim.Region.Framework.Scenes;
-using OpenSim.Services.Interfaces;
 
-namespace OpenSim.Region.CoreModules.Asset
+namespace OpenSim.Tests.Common
 {
-    [Extension(Path = "/OpenSim/RegionModules", NodeName = "RegionModule", Id = "CoreAssetCache")]
-    public class CoreAssetCache : ISharedRegionModule, IAssetCache
+    public class TestsAssetCache : ISharedRegionModule, IAssetCache
     {
-        private static readonly ILog m_log =
-                LogManager.GetLogger(
-                MethodBase.GetCurrentMethod().DeclaringType);
+        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         private bool m_Enabled;
-        private Cache m_Cache;
+        private MemoryCache m_Cache;
 
         public string Name
         {
-            get { return "CoreAssetCache"; }
+            get { return "TestsAssetCache"; }
         }
 
         public Type ReplaceableInterface
@@ -61,30 +55,8 @@ namespace OpenSim.Region.CoreModules.Asset
 
         public void Initialise(IConfigSource source)
         {
-            IConfig moduleConfig = source.Configs["Modules"];
-
-            if (moduleConfig != null)
-            {
-                string name = moduleConfig.GetString("AssetCaching");
-                //m_log.DebugFormat("[XXX] name = {0} (this module's name: {1}", name, Name);
-
-                if (name == Name)
-                {
-                    IConfig assetConfig = source.Configs["AssetCache"];
-                    if (assetConfig == null)
-                    {
-                        m_log.Error("[ASSET CACHE]: AssetCache missing from OpenSim.ini");
-                        return;
-                    }
-
-                    m_Cache = new Cache(CacheMedium.Memory, CacheStrategy.Aggressive, CacheFlags.AllowUpdate);
-                    m_Enabled = true;
-
-                    m_log.Info("[ASSET CACHE]: Core asset cache enabled");
-
-                    m_Cache.Size = assetConfig.GetInt("CacheBuckets", 32768);
-                }
-            }
+            m_Cache = MemoryCache.Default;
+            m_Enabled = true;
         }
 
         public void PostInitialise()
@@ -124,7 +96,10 @@ namespace OpenSim.Region.CoreModules.Asset
         public void Cache(AssetBase asset, bool replace = true)
         {
             if (asset != null)
-                m_Cache.Store(asset.ID, asset);
+            {
+                CacheItemPolicy policy = new CacheItemPolicy();
+                m_Cache.Set(asset.ID, asset, policy);
+            }
         }
 
         public void CacheNegative(string id)
@@ -140,12 +115,17 @@ namespace OpenSim.Region.CoreModules.Asset
 
         public void Expire(string id)
         {
-            m_Cache.Invalidate(id);
+            m_Cache.Remove(id);
         }
 
         public void Clear()
         {
-            m_Cache.Clear();
         }
+        /*
+        public bool UpdateContent(string id, byte[] data)
+        {
+            return false;
+        }
+        */
     }
 }

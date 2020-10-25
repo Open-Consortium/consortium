@@ -866,7 +866,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Float llSin(double f)
         {
             m_host.AddScriptLPS(1);
-            return (double)Math.Sin(f);
+            return Math.Sin(f);
         }
 
         public LSL_Float llCos(double f)
@@ -3497,7 +3497,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_host.AddScriptLPS(1);
 
             // Normalize indices (if negative).
-            // After normlaization they may still be
+            // After normalization they may still be
             // negative, but that is now relative to
             // the start, rather than the end, of the
             // sequence.
@@ -5058,9 +5058,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             m_host.AddScriptLPS(1);
             Vector3 av3 = Util.Clip(color, 0.0f, 1.0f);
-            byte[] data;
-            data = Util.StringToBytesNoTerm(text,256);
-            text = Util.UTF8.GetString(data);
             m_host.SetText(text, av3, Util.Clip((float)alpha, 0.0f, 1.0f));
         }
 
@@ -5682,13 +5679,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public void llPassCollisions(int pass)
         {
             m_host.AddScriptLPS(1);
-            if (pass == 0)
+            if (pass == 1)
             {
-                m_host.PassCollisions = false;
+                m_host.PassCollisions = true;
             }
             else
             {
-                m_host.PassCollisions = true;
+                m_host.PassCollisions = false;
             }
         }
 
@@ -7139,21 +7136,20 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         private void SetTextureAnim(SceneObjectPart part, int mode, int face, int sizex, int sizey, double start, double length, double rate)
         {
 
-            Primitive.TextureAnimation pTexAnim = new Primitive.TextureAnimation
-            {
-                Flags = (Primitive.TextureAnimMode)mode
-            };
-
             //ALL_SIDES
             if (face == ScriptBaseClass.ALL_SIDES)
                 face = 255;
 
-            pTexAnim.Face = (uint)face;
-            pTexAnim.Length = (float)length;
-            pTexAnim.Rate = (float)rate;
-            pTexAnim.SizeX = (uint)sizex;
-            pTexAnim.SizeY = (uint)sizey;
-            pTexAnim.Start = (float)start;
+            Primitive.TextureAnimation pTexAnim = new Primitive.TextureAnimation
+            {
+                Flags = (Primitive.TextureAnimMode)mode,
+                Face = (uint)face,
+                Length = (float)length,
+                Rate = (float)rate,
+                SizeX = (uint)sizex,
+                SizeY = (uint)sizey,
+                Start = (float)start
+            };
 
             part.AddTextureAnimation(pTexAnim);
             part.SendFullUpdateToAllClients();
@@ -7264,19 +7260,18 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Integer llSameGroup(string id)
         {
             m_host.AddScriptLPS(1);
-            UUID uuid = new UUID();
+            UUID uuid;
             if (!UUID.TryParse(id, out uuid))
-                return new LSL_Integer(0);
+                return 0;
 
             // Check if it's a group key
             if (uuid == m_host.ParentGroup.RootPart.GroupID)
-                return new LSL_Integer(1);
+                return 1;
 
             // Handle object case
             SceneObjectPart part = World.GetSceneObjectPart(uuid);
             if (part != null)
             {
-
                 if(part.ParentGroup.IsAttachment)
                 {
                     uuid = part.ParentGroup.AttachedAvatar;
@@ -7286,9 +7281,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                     // This will handle both deed and non-deed and also the no
                     // group case
                     if (part.ParentGroup.RootPart.GroupID == m_host.ParentGroup.RootPart.GroupID)
-                        return new LSL_Integer(1);
-
-                    return new LSL_Integer(0);
+                        return 1;
+                    return 0;
                 }
             }
 
@@ -7297,16 +7291,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (presence != null)
             {
                 if (presence.IsChildAgent)
-                    return new LSL_Integer(0);
+                    return 0;
 
                 IClientAPI client = presence.ControllingClient;
                 if (m_host.ParentGroup.RootPart.GroupID == client.ActiveGroupId)
-                    return new LSL_Integer(1);
+                    return 1;
 
-                return new LSL_Integer(0);
+                return 0;
             }
 
-            return new LSL_Integer(0);
+            return 0;
         }
 
         public void llUnSit(string id)
@@ -18251,6 +18245,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 if(str == ScriptBaseClass.JSON_NULL || str == "null")
                     return "null";
                 str.Trim();
+                if(str.Length == 0)
+                    return "\"\"";
                 if (str[0] == '{')
                     return str;
                 if (str[0] == '[')
