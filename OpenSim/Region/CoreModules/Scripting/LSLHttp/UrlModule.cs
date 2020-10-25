@@ -275,7 +275,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                 //    "[URL MODULE]: Set up incoming request url {0} for {1} in {2} {3}",
                 //     uri, itemID, host.Name, host.LocalId);
 
-                engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_GRANTED", url + "/"});
+                engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_GRANTED", url});
             }
 
             return urlcode;
@@ -339,7 +339,7 @@ namespace OpenSim.Region.CoreModules.Scripting.LSLHttp
                 //    "[URL MODULE]: Set up incoming secure request url {0} for {1} in {2} {3}",
                 //     uri, itemID, host.Name, host.LocalId);
                 // keep ending / because legacy
-                engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_GRANTED", url + "/"});
+                engine.PostScriptEvent(itemID, "http_request", new Object[] { urlcode.ToString(), "URL_REQUEST_GRANTED", url});
             }
 
             return urlcode;
