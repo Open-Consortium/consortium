@@ -585,5 +585,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         LSL_Integer osReplaceRegionEnvironment(LSL_Integer transition, LSL_String daycycle,
            LSL_Float daylen, LSL_Float dayoffset, LSL_Float altitude1, LSL_Float altitude2, LSL_Float altitude3);
         LSL_Integer osResetEnvironment(LSL_Integer parcelOrRegion, LSL_Integer transition);
+        LSL_Float osPerlinNoise2D(LSL_Float x, LSL_Float y, LSL_Integer octaves, LSL_Float persistence);
     }
 }

@@ -6009,5 +6009,12 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_envModule.WindlightRefresh(transition);
             return 1;
         }
+
+        public LSL_Float osPerlinNoise2D(LSL_Float x, LSL_Float y, LSL_Integer octaves, LSL_Float persistence)
+        {
+            m_host.AddScriptLPS(1);
+
+            return new LSL_Float(TerrainUtil.PerlinNoise2D(x, y, octaves, persistence));
+        }
     }
 }
