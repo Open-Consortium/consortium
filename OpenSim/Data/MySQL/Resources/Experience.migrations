@@ -18,10 +18,10 @@ CREATE TABLE `experiences` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
 CREATE TABLE `experience_permissions` (
-	`experience` VARCHAR(36) NOT NULL COLLATE 'utf8mb4_0900_ai_ci',
-	`avatar` VARCHAR(36) NOT NULL COLLATE 'utf8mb4_0900_ai_ci',
+	`experience` VARCHAR(36) NOT NULL COLLATE 'utf8_unicode_ci',
+	`avatar` VARCHAR(36) NOT NULL COLLATE 'utf8_unicode_ci',
 	`allow` BIT(1) NOT NULL,
-	PRIMARY KEY (`experience`) USING BTREE,
+	PRIMARY KEY (`experience`, `avatar`) USING BTREE,
 	INDEX `avatar` (`avatar`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
 
