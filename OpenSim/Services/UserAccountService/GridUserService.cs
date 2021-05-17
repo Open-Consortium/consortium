@@ -143,29 +143,121 @@ namespace OpenSim.Services.UserAccountService
             MainConsole.Instance.Output("Users online: {0}", onlineRecentlyCount);
         }
 
+        private static ExpiringCacheOS<string, GridUserData> cache = new ExpiringCacheOS<string, GridUserData>(00000);
         private GridUserData GetGridUserData(string userID)
         {
-            GridUserData d = null;
-            if (userID.Length > 36) // it's a UUI
-            {
-                d = m_Database.Get(userID);
-            }
-            else // it's a UUID
-            {
-                GridUserData[] ds = m_Database.GetAll(userID);
-                if (ds == null)
-                    return null;
+            if (userID.Length > 36)
+                userID = userID.Substring(0, 36);
 
-                if (ds.Length > 0)
+            if (cache.TryGetValue(userID, out GridUserData d))
+               return d;
+
+            GridUserData[] ds = m_Database.GetAll(userID);
+            if (ds == null || ds.Length == 0)
+            {
+                cache.Add(userID, null, 300000);
+                return null;
+            }
+
+            d = ds[0];
+            if (ds.Length > 1)
+            {
+                // try find most recent record
+                try
                 {
-                    d = ds[0];
-                    foreach (GridUserData dd in ds)
-                        if (dd.UserID.Length > d.UserID.Length) // find the longest
+                    int tsta = int.Parse(d.Data["Login"]);
+                    int tstb = int.Parse(d.Data["Logout"]);
+                    int cur = tstb > tsta? tstb : tsta;
+
+                    for (int i = 1; i < ds.Length; ++i)
+                    {
+                        GridUserData dd = ds[i];
+                        tsta = int.Parse(dd.Data["Login"]);
+                        tstb = int.Parse(dd.Data["Logout"]);
+                        if(tsta > tstb)
+                            tstb = tsta;
+                        if (tstb > cur) 
+                        {
+                            cur = tstb;
                             d = dd;
+                        }
+                    }
+                }
+                catch { }
+            }
+            cache.Add(userID, d, 300000);
+            return d;
+        }
+
+        private GridUserInfo ToInfo(GridUserData d)
+        {
+            GridUserInfo info = new GridUserInfo();
+            info.UserID = d.UserID;
+            Dictionary<string, string> kvp = d.Data;
+            string tmpstr;
+
+            if (kvp.TryGetValue("HomeRegionID", out tmpstr))
+                info.HomeRegionID = new UUID(tmpstr);
+            else
+                info.HomeRegionID = UUID.Zero;
+
+            if (kvp.TryGetValue("HomePosition", out tmpstr))
+                info.HomePosition = Vector3.Parse(tmpstr);
+            else
+                info.HomePosition = Vector3.Zero;
+
+            if (kvp.TryGetValue("HomeLookAt", out tmpstr))
+                info.HomeLookAt = Vector3.Parse(tmpstr);
+            else
+                info.HomeLookAt = Vector3.Zero;
+
+            if (kvp.TryGetValue("LastRegionID", out tmpstr))
+                info.LastRegionID = new UUID(tmpstr);
+            else
+                info.LastRegionID = UUID.Zero;
+
+            if (kvp.TryGetValue("LastPosition", out tmpstr))
+                info.LastPosition = Vector3.Parse(tmpstr);
+            else
+                info.LastPosition = Vector3.Zero;
+
+            if (kvp.TryGetValue("LastLookAt", out tmpstr))
+                info.LastLookAt = Vector3.Parse(tmpstr);
+            else
+                info.LastLookAt = Vector3.Zero;
+
+            if (kvp.TryGetValue("Online", out tmpstr))
+                info.Online = bool.Parse(tmpstr);
+            else
+                info.Online = false;
+
+            if (kvp.TryGetValue("Login", out tmpstr))
+                info.Login = Util.ToDateTime(Convert.ToInt32(tmpstr));
+            else
+                info.Login = Util.UnixEpoch;
+
+            if (kvp.TryGetValue("Logout", out tmpstr))
+                info.Logout = Util.ToDateTime(Convert.ToInt32(tmpstr));
+            else
+                info.Logout = Util.UnixEpoch;
+			
+			if(kvp.TryGetValue("DisplayName", out tmpstr))
+				info.DisplayName = tmpstr;
+			else
+				info.DisplayName = string.Empty;
+
+            if (kvp.TryGetValue("NameCached", out tmpstr))
+            {
+                if(d.Data["NameCached"] != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(tmpstr))
+                        info.NameCached = Util.ToDateTime(Convert.ToInt32(tmpstr));
                 }
             }
+			else
+				info.NameCached = DateTime.MinValue;
 
-            return d;
+            return info;
         }
 
         public virtual GridUserInfo GetGridUserInfo(string userID)
@@ -175,34 +267,7 @@ namespace OpenSim.Services.UserAccountService
             if (d == null)
                 return null;
 
-            GridUserInfo info = new GridUserInfo();
-            info.UserID = d.UserID;
-            info.HomeRegionID = new UUID(d.Data["HomeRegionID"]);
-            info.HomePosition = Vector3.Parse(d.Data["HomePosition"]);
-            info.HomeLookAt = Vector3.Parse(d.Data["HomeLookAt"]);
-
-            info.LastRegionID = new UUID(d.Data["LastRegionID"]);
-            info.LastPosition = Vector3.Parse(d.Data["LastPosition"]);
-            info.LastLookAt = Vector3.Parse(d.Data["LastLookAt"]);
-
-            info.Online = bool.Parse(d.Data["Online"]);
-            info.Login = Util.ToDateTime(Convert.ToInt32(d.Data["Login"]));
-            info.Logout = Util.ToDateTime(Convert.ToInt32(d.Data["Logout"]));
-
-			info.DisplayName = d.Data.ContainsKey("DisplayName") ? d.Data["DisplayName"] : string.Empty;
-
-            if (d.Data.ContainsKey("NameCached"))
-            {
-                if(d.Data["NameCached"] != null)
-                {
-                    if (!string.IsNullOrWhiteSpace(d.Data["NameCached"]))
-                        info.NameCached = Util.ToDateTime(Convert.ToInt32(d.Data["NameCached"]));
-                }
-            }
-
-            if(info.NameCached == null) info.NameCached = DateTime.MinValue;
-            
-            return info;
+            return ToInfo(d);
         }
 
         public virtual GridUserInfo[] GetGridUserInfo(string[] userIDs, bool update_name = false)
@@ -338,8 +403,10 @@ namespace OpenSim.Services.UserAccountService
             d.Data["Login"] = Util.UnixTimeSinceEpoch().ToString();
 
             m_Database.Store(d);
+            if (userID.Length >= 36)
+                cache.Add(userID.Substring(0, 36), d, 300000);
 
-            return GetGridUserInfo(userID);
+            return ToInfo(d);
         }
 
         public bool LoggedOut(string userID, UUID sessionID, UUID regionID, Vector3 lastPosition, Vector3 lastLookAt)
@@ -360,7 +427,10 @@ namespace OpenSim.Services.UserAccountService
             d.Data["LastPosition"] = lastPosition.ToString();
             d.Data["LastLookAt"] = lastLookAt.ToString();
 
-            return m_Database.Store(d);
+            bool ret = m_Database.Store(d);
+            if (ret && userID.Length >= 36)
+                cache.Add(userID.Substring(0, 36), d, 300000);
+            return ret;
         }
 
         public bool SetHome(string userID, UUID homeID, Vector3 homePosition, Vector3 homeLookAt)
@@ -377,7 +447,10 @@ namespace OpenSim.Services.UserAccountService
             d.Data["HomePosition"] = homePosition.ToString();
             d.Data["HomeLookAt"] = homeLookAt.ToString();
 
-            return m_Database.Store(d);
+            bool ret = m_Database.Store(d);
+            if (ret && userID.Length >= 36)
+                cache.Add(userID.Substring(0, 36), d, 300000);
+            return ret;
         }
 
         public bool SetLastPosition(string userID, UUID sessionID, UUID regionID, Vector3 lastPosition, Vector3 lastLookAt)
@@ -396,7 +469,10 @@ namespace OpenSim.Services.UserAccountService
             d.Data["LastPosition"] = lastPosition.ToString();
             d.Data["LastLookAt"] = lastLookAt.ToString();
 
-            return m_Database.Store(d);
+            bool ret = m_Database.Store(d);
+            if (ret && userID.Length >= 36)
+                cache.Add(userID.Substring(0, 36), d, 300000);
+            return ret;
         }
         
 		public bool SetDisplayName(string userID, string displayName)

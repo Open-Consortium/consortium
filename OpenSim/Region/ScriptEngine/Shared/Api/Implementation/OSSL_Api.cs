@@ -47,6 +47,7 @@ using System.Runtime.Remoting.Lifetime;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Security.Cryptography;
 using GridRegion = OpenSim.Services.Interfaces.GridRegion;
 using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
 using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
@@ -57,6 +58,8 @@ using LSL_String = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
 using LSL_Vector = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Vector3;
 using PermissionMask = OpenSim.Framework.PermissionMask;
 using TPFlags = OpenSim.Framework.Constants.TeleportFlags;
+
+#pragma warning disable IDE1006
 
 namespace OpenSim.Region.ScriptEngine.Shared.Api
 {
@@ -312,7 +315,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         // for safe funtions always active
         public void CheckThreatLevel()
         {
-            m_host.AddScriptLPS(1);
             if (!m_OSFunctionsEnabled)
                 OSSLError("permission denied. All unsafe OSSL funtions disabled"); // throws
         }
@@ -320,7 +322,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         // Returns if the function is allowed. Throws a script exception if not allowed.
         public void CheckThreatLevel(ThreatLevel level, string function)
         {
-            m_host.AddScriptLPS(1);
             if (!m_OSFunctionsEnabled)
             {
                 if (m_PermissionErrortoOwner)
@@ -2042,10 +2043,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             //    about the physics engine, this function returns an empty string if
             //    the user does not have permission to see it. This as opposed to
             //    throwing an exception.
-
-            m_host.AddScriptLPS(1);
-            string ret = String.Empty;
-            if (String.IsNullOrEmpty(CheckThreatLevelTest(ThreatLevel.High, "osGetPhysicsEngineType")))
+            string ret = string.Empty;
+            if (string.IsNullOrEmpty(CheckThreatLevelTest(ThreatLevel.High, "osGetPhysicsEngineType")))
             {
                 if (m_ScriptEngine.World.PhysicsScene != null)
                 {
@@ -2587,6 +2586,17 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             return retval;
         }
 
+        public string osSHA256(string input)
+        {
+            // Create a SHA256   
+            using (SHA256 sha256Hash = SHA256.Create())  
+            {  
+                // ComputeHash - returns byte array
+                byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(input));  
+                return Util.bytesToHexString(bytes, true);
+            }
+        }
+
         /// <summary>
         /// Get the nickname of this grid, as set in the [GridInfo] config section.
         /// </summary>
@@ -2616,16 +2626,10 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             CheckThreatLevel(ThreatLevel.Moderate, "osGetGridName");
 
-            string name = String.Empty;
-            IConfigSource config = m_ScriptEngine.ConfigSource;
+            if(World.SceneGridInfo == null)
+                return string.Empty;
 
-            if (config.Configs[GridInfoServiceConfigSectionName] != null)
-                name = config.Configs[GridInfoServiceConfigSectionName].GetString("gridname", name);
-
-            if (String.IsNullOrEmpty(name))
-                name = GridUserInfo(InfoType.Name);
-
-            return name;
+            return World.SceneGridInfo.GridName;
         }
 
         public string osGetGridLoginURI()
@@ -2648,14 +2652,14 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             CheckThreatLevel(ThreatLevel.Moderate, "osGetGridHomeURI");
 
-            return World.SceneGridInfo.HGHomeURLNoEndSlash;
+            return World.SceneGridInfo.HomeURLNoEndSlash;
         }
 
         public string osGetGridGatekeeperURI()
         {
             CheckThreatLevel(ThreatLevel.Moderate, "osGetGridGatekeeperURI");
 
-            return World.SceneGridInfo.HGGateKeeperURLNoEndSlash;
+            return World.SceneGridInfo.GateKeeperURLNoEndSlash;
         }
 
         public string osGetGridCustom(string key)
@@ -2687,21 +2691,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             }
 
             if (returnValue == "")
-            {
-                IConfigSource config = m_ScriptEngine.ConfigSource;
-                returnValue = Util.GetConfigVarFromSections<string>(config, "HomeURI",
-                    new string[] { "Startup", "Hypergrid" }, String.Empty);
-
-                if (!string.IsNullOrEmpty(returnValue))
-                    return returnValue;
-
-                // Legacy. Remove soon!
-                if (config.Configs["LoginService"] != null)
-                    returnValue = config.Configs["LoginService"].GetString("SRV_HomeURI", returnValue);
-
-                if (String.IsNullOrEmpty(returnValue))
-                    returnValue = GridUserInfo(InfoType.Home);
-            }
+                return World.SceneGridInfo.HomeURLNoEndSlash;
 
             return returnValue;
         }
@@ -3693,7 +3683,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             LSL_List ret = new LSL_List();
             float[] stats = World.StatsReporter.LastReportedSimStats;
 
-            for (int i = 0; i < 21; i++)
+            for (int i = 0; i < stats.Length; i++)
             {
                 ret.Add(new LSL_Float(stats[i]));
             }
@@ -4257,6 +4247,34 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             m_LSL_Api.DetachFromAvatar();
         }
 
+        private bool listObjToInt(object p, out int i)
+        {
+            try
+            {
+                if (p is LSL_Integer)
+                    i = (LSL_Integer)p;
+                else if (p is int)
+                    i = (int)p;
+                else if (p is uint)
+                    i = (int)(uint)p;
+                else if (p is string)
+                    return int.TryParse((string)p, out i);
+                else if (p is LSL_String)
+                    return int.TryParse((string)(LSL_String)p, out i);
+                else
+                {
+                    i = 0;
+                    return false;
+                }
+                return true;
+            }
+            catch
+            {
+                i = 0;
+                return false;
+            }
+        }
+
         public LSL_List osGetNumberOfAttachments(LSL_Key avatar, LSL_List attachmentPoints)
         {
             CheckThreatLevel(ThreatLevel.Moderate, "osGetNumberOfAttachments");
@@ -4267,12 +4285,8 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 foreach (object point in attachmentPoints.Data)
                 {
-                    LSL_Integer ipoint = new LSL_Integer(
-                        (point is LSL_Integer || point is int || point is uint) ?
-                            (int)point :
-                            0
-                    );
-                    resp.Add(ipoint);
+                    listObjToInt(point, out int ipoint);
+                    resp.Add(new LSL_Integer(ipoint));
                     if (ipoint == 0)
                     {
                         // indicates zero attachments
@@ -5005,7 +5019,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
        public void osAdjustSoundVolume(LSL_Integer linknum, LSL_Float volume)
         {
-            m_host.AddScriptLPS(1);
             SceneObjectPart sop = GetSingleLinkPart(linknum);
             if(sop == null)
                 return;
@@ -5014,7 +5027,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osSetSoundRadius(LSL_Integer linknum, LSL_Float radius)
         {
-            m_host.AddScriptLPS(1);
             SceneObjectPart sop = GetSingleLinkPart(linknum);
             if(sop == null)
                 return;
@@ -5023,8 +5035,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osPlaySound(LSL_Integer linknum, LSL_String sound, LSL_Float volume)
         {
-            m_host.AddScriptLPS(1);
-
             if (m_SoundModule == null)
                 return;
 
@@ -5042,8 +5052,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osLoopSound(LSL_Integer linknum, LSL_String sound, LSL_Float volume)
         {
-            m_host.AddScriptLPS(1);
-
             if (m_SoundModule == null)
                 return;
 
@@ -5060,8 +5068,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osLoopSoundMaster(LSL_Integer linknum, LSL_String sound, LSL_Float volume)
         {
-            m_host.AddScriptLPS(1);
-
             if (m_SoundModule == null)
                 return;
 
@@ -5078,8 +5084,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osLoopSoundSlave(LSL_Integer linknum, LSL_String sound, LSL_Float volume)
         {
-            m_host.AddScriptLPS(1);
-
             if (m_SoundModule == null)
                 return;
 
@@ -5096,8 +5100,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osPlaySoundSlave(LSL_Integer linknum, LSL_String sound, LSL_Float volume)
         {
-            m_host.AddScriptLPS(1);
-
             if (m_SoundModule == null)
                 return;
 
@@ -5115,8 +5117,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osTriggerSound(LSL_Integer linknum, LSL_String sound, LSL_Float volume)
         {
-            m_host.AddScriptLPS(1);
-
             if (m_SoundModule == null)
                 return;
 
@@ -5135,8 +5135,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
        public void osTriggerSoundLimited(LSL_Integer linknum, LSL_String sound, LSL_Float volume,
                  LSL_Vector top_north_east, LSL_Vector bottom_south_west)
         {
-            m_host.AddScriptLPS(1);
-
             if (m_SoundModule == null)
                 return;
 
@@ -5154,22 +5152,22 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public void osStopSound(LSL_Integer linknum)
         {
-            m_host.AddScriptLPS(1);
-
             if (m_SoundModule == null)
                 return;
 
-            SceneObjectPart sop = GetSingleLinkPart(linknum);
-            if(sop == null)
+            InitLSL();
+            if(m_LSL_Api == null)
                 return;
 
-            m_SoundModule.StopSound(sop.UUID);
+            List<SceneObjectPart> sops = m_LSL_Api.GetLinkParts(linknum);
+            if(sops == null || sops.Count == 0)
+                return;
+            for(int i = 0; i < sops.Count; ++i)
+                m_SoundModule.StopSound(sops[i].UUID);
         }
 
         public void osPreloadSound(LSL_Integer linknum, LSL_String sound)
         {
-            m_host.AddScriptLPS(1);
-
             if (m_SoundModule == null)
                 return;
 
@@ -5234,7 +5232,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_String osDetectedCountry(LSL_Integer number)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel(ThreatLevel.Moderate, "osDetectedCountry");
 
             if (World.UserAccountService == null)
@@ -5251,7 +5248,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_String osGetAgentCountry(LSL_Key id)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel(ThreatLevel.Moderate, "osGetAgentCountry");
 
             if (World.UserAccountService == null)
@@ -5276,7 +5272,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_String osStringSubString(LSL_String src, LSL_Integer offset)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel();
 
             if (string.IsNullOrEmpty(src))
@@ -5290,7 +5285,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_String osStringSubString(LSL_String src, LSL_Integer offset, LSL_Integer length)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel();
 
             if (string.IsNullOrEmpty(src))
@@ -5310,7 +5304,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Integer osStringStartsWith(LSL_String src, LSL_String value, LSL_Integer ignorecase)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel();
 
             if (string.IsNullOrEmpty(src))
@@ -5324,7 +5317,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Integer osStringEndsWith(LSL_String src, LSL_String value, LSL_Integer ignorecase)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel();
 
             if (string.IsNullOrEmpty(src))
@@ -5338,7 +5330,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Integer osStringIndexOf(LSL_String src, LSL_String value, LSL_Integer ignorecase)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel();
 
             if (string.IsNullOrEmpty(src))
@@ -5354,7 +5345,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Integer osStringIndexOf(LSL_String src, LSL_String value,
             LSL_Integer offset, LSL_Integer count, LSL_Integer ignorecase)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel();
 
             if (string.IsNullOrEmpty(src))
@@ -5378,7 +5368,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Integer osStringLastIndexOf(LSL_String src, LSL_String value, LSL_Integer ignorecase)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel();
 
             if (string.IsNullOrEmpty(src))
@@ -5394,7 +5383,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         public LSL_Integer osStringLastIndexOf(LSL_String src, LSL_String value,
             LSL_Integer offset, LSL_Integer count, LSL_Integer ignorecase)
         {
-            m_host.AddScriptLPS(1);
             CheckThreatLevel();
 
             if (string.IsNullOrEmpty(src))
@@ -5548,8 +5536,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Key osGetInventoryLastOwner(LSL_String itemNameorid)
         {
-            m_host.AddScriptLPS(1);
-
             TaskInventoryItem item = null;
             if (UUID.TryParse(itemNameorid, out UUID itemID))
                 item = m_host.Inventory.GetInventoryItem(itemID);
@@ -5567,8 +5553,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Key osGetInventoryItemKey(LSL_String name)
         {
-            m_host.AddScriptLPS(1);
-
             TaskInventoryItem item = m_host.Inventory.GetInventoryItem(name);
 
             if (item == null)
@@ -5586,8 +5570,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_String osGetInventoryName(LSL_Key itemId)
         {
-            m_host.AddScriptLPS(1);
-
             TaskInventoryItem item = null;
             if (UUID.TryParse(itemId, out UUID itemID))
                 item = m_host.Inventory.GetInventoryItem(itemID);
@@ -5600,8 +5582,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_String osGetInventoryDesc(LSL_String itemNameorid)
         {
-            m_host.AddScriptLPS(1);
-
             TaskInventoryItem item = null;
             if (UUID.TryParse(itemNameorid, out UUID itemID))
                 item = m_host.Inventory.GetInventoryItem(itemID);
@@ -5616,7 +5596,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Key osGetLastChangedEventKey()
         {
-            m_host.AddScriptLPS(1);
             DetectParams detectedParams = m_ScriptEngine.GetDetectParams(m_item.ItemID, 0);
             if (detectedParams == null)
                 return String.Empty;
@@ -5626,7 +5605,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         // returns PST or PDT wall clock
         public LSL_Float osGetPSTWallclock()
         {
-            m_host.AddScriptLPS(1);
             if(PSTTimeZone == null)
                 return DateTime.Now.TimeOfDay.TotalSeconds;
 
@@ -5644,6 +5622,16 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             b.Normalize();
 
             return LSL_Rotation.Slerp(a, b, amount);
+        }
+
+        public LSL_Vector osSlerp(LSL_Vector a, LSL_Vector b, LSL_Float amount)
+        {
+            if (amount < 0)
+                amount = 0;
+            else if (amount > 1.0)
+                amount = 1.0;
+
+            return LSL_Vector.Slerp(a, b, amount);
         }
 
         public void osResetAllScripts(LSL_Integer linkset)
@@ -5799,7 +5787,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Integer osReplaceAgentEnvironment(LSL_Key agentkey, LSL_Integer transition, LSL_String daycycle)
         {
-            m_host.AddScriptLPS(1);
             if(!string.IsNullOrEmpty(CheckThreatLevelTest(ThreatLevel.Moderate, "osReplaceAgentEnvironment")))
                 return -2;
 
@@ -5838,15 +5825,13 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             {
                 sp.Environment = null;
                 m_envModule.WindlightRefreshForced(sp, transition);
-                return -9;
+                return -5;
             }
             return 1;
         }
 
         public LSL_Integer osReplaceParcelEnvironment(LSL_Integer transition, LSL_String daycycle)
         {
-            m_host.AddScriptLPS(1);
-
             if (!World.RegionInfo.EstateSettings.AllowEnvironmentOverride)
                 return -1;
 
@@ -5901,8 +5886,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             LSL_Float daylen, LSL_Float dayoffset,
             LSL_Float altitude1, LSL_Float altitude2, LSL_Float altitude3)
         {
-            m_host.AddScriptLPS(1);
-
             if (!World.Permissions.CanIssueEstateCommand(m_host.OwnerID, true))
                 return -3;
 
@@ -5981,8 +5964,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Integer osResetEnvironment(LSL_Integer parcelOrRegion, LSL_Integer transition)
         {
-            m_host.AddScriptLPS(1);
-
             if (parcelOrRegion > 0)
             {
                 if (!World.RegionInfo.EstateSettings.AllowEnvironmentOverride)
@@ -6012,9 +5993,108 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
         public LSL_Float osPerlinNoise2D(LSL_Float x, LSL_Float y, LSL_Integer octaves, LSL_Float persistence)
         {
-            m_host.AddScriptLPS(1);
-
             return new LSL_Float(TerrainUtil.PerlinNoise2D(x, y, octaves, persistence));
+		}
+		
+        public void osParticleSystem(LSL_List rules)
+        {
+            InitLSL();
+            if (m_LSL_Api != null)
+                m_LSL_Api.SetParticleSystem(m_host, rules, "osParticleSystem", true);
+        }
+
+        public void osLinkParticleSystem(LSL_Integer linknumber, LSL_List rules)
+        {
+            InitLSL();
+            if (m_LSL_Api != null)
+            {
+                List<SceneObjectPart> parts = m_LSL_Api.GetLinkParts(linknumber);
+
+                foreach (SceneObjectPart part in parts)
+                {
+                    m_LSL_Api.SetParticleSystem(part, rules, "osLinkParticleSystem", true);
+                }
+            }
+        }
+
+        public LSL_Integer osNpcLookAt(LSL_Key npckey, LSL_Integer ltype, LSL_Key objkey, LSL_Vector offset)
+        {
+            if (World.GetNumberOfClients() == 0)
+                return 0;
+
+            if (ltype < 0 || ltype > ScriptBaseClass.NPCLOOKAT_CLEAR)
+                return -1;
+
+            if (!UUID.TryParse(npckey, out UUID npc))
+                return -2;
+
+            ScenePresence npcSP = World.GetScenePresence(npc);
+            if((npcSP == null) || !npcSP.IsNPC)
+                return -3;
+
+            if (!UUID.TryParse(objkey, out UUID obj))
+                return -4;
+
+            if(obj != UUID.Zero)
+            {
+                ScenePresence objSP = World.GetScenePresence(obj);
+                if(objSP == null)
+                {
+                    SceneObjectPart objSOP = World.GetSceneObjectPart(obj);
+                    if(objSOP == null)
+                        return -5;
+                }
+            }
+
+            byte[] data = new byte[57];
+            npc.ToBytes(data, 0);
+            obj.ToBytes(data, 16);
+            Vector3d vd = new Vector3d(offset.x, offset.y, offset.z);
+            vd.ToBytes(data, 32);
+            data[56] = (byte)(int)ltype;
+
+            OpenMetaverse.Packets.ViewerEffectPacket.EffectBlock effect = new OpenMetaverse.Packets.ViewerEffectPacket.EffectBlock();
+            effect.AgentID = npc;
+            effect.Color = new byte[4];
+            effect.Duration = 0;
+            effect.ID = UUID.Random();
+            effect.Type = 14;
+            effect.TypeData = data;
+
+            OpenMetaverse.Packets.ViewerEffectPacket.EffectBlock[] effectblock = new OpenMetaverse.Packets.ViewerEffectPacket.EffectBlock[1];
+            effectblock[0] = effect;
+
+            World.ForEachScenePresence(
+             sp =>
+             {
+                if(!sp.IsNPC && !sp.IsDeleted)
+                {
+                    sp.ControllingClient.SendViewerEffect(effectblock);
+                }
+             });
+
+            return 0;
+        }
+
+        public LSL_Integer osAvatarType(LSL_Key avkey)
+        {
+            if (!UUID.TryParse(avkey.m_string, out UUID avId))
+                return -1;
+
+            ScenePresence av = World.GetScenePresence(avId);
+            if (av == null || av.IsDeleted || av.IsChildAgent)
+                return 0;
+
+            return av.IsNPC ? 2 : 1;
+        }
+
+        public LSL_Integer osAvatarType(LSL_String sFirstName, LSL_String sLastName)
+        {
+            ScenePresence av = World.GetScenePresence(sFirstName.m_string, sLastName.m_string);
+            if (av == null || av.IsDeleted || av.IsChildAgent)
+                return 0;
+
+            return av.IsNPC ? 2 : 1;
         }
     }
 }

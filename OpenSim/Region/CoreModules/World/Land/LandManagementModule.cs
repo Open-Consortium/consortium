@@ -452,7 +452,7 @@ namespace OpenSim.Region.CoreModules.World.Land
             avatar.AbsolutePosition = position.Value;
             avatar.lastKnownAllowedPosition = position.Value;
             avatar.Velocity = Vector3.Zero;
-            if(avatar.IsSatOnObject)
+            if(avatar.IsSitting)
                 avatar.StandUp();
             forcedPosition.Add(avatar.UUID);
         }
@@ -869,12 +869,12 @@ namespace OpenSim.Region.CoreModules.World.Land
         /// </summary>
         public void Clear(bool setupDefaultParcel)
         {
-            Dictionary<int, ILandObject> landworkList;
+            List<UUID> landworkList = new List<UUID>(m_landList.Count);
             // move to work pointer since we are deleting it all
             lock (m_landList)
             {
-                landworkList = m_landList;
-                m_landList.Clear();
+                foreach (ILandObject lo in m_landList.Values)
+                    landworkList.Add(lo.LandData.GlobalID);
             }
 
             // this 2 methods have locks (now)
@@ -884,10 +884,10 @@ namespace OpenSim.Region.CoreModules.World.Land
                 CreateDefaultParcel();
 
             // fire outside events unlocked
-            foreach (ILandObject lo in landworkList.Values)
+            foreach (UUID id in landworkList)
             {
                 //m_scene.SimulationDataService.RemoveLandObject(lo.LandData.GlobalID);
-                m_scene.EventManager.TriggerLandObjectRemoved(lo.LandData.GlobalID);
+                m_scene.EventManager.TriggerLandObjectRemoved(id);
             }
             landworkList.Clear();
         }
@@ -1540,7 +1540,7 @@ namespace OpenSim.Region.CoreModules.World.Land
 
             if (start_x < 0 || start_y < 0 || end_x < 0 || end_y < 0)
                 return;
-            if (start_x >= m_regionSizeX || start_y >= m_regionSizeX || end_x >= m_regionSizeY || end_y >= m_regionSizeY)
+            if (start_x >= m_regionSizeX || start_y >= m_regionSizeX || end_x > m_regionSizeX || end_y > m_regionSizeY)
                 return;
 
             if (end_x - start_x <= LandUnit &&

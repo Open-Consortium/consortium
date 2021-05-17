@@ -411,8 +411,6 @@ namespace OSHttpServer
                     }
                     m_headers.Add(name, value);
                     break;
-                */
-                /*
                 case "user-agent":
 
                     break;

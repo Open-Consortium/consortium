@@ -25,6 +25,8 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#pragma warning disable IDE1006
+
 using System;
 using System.Collections;
 using OpenSim.Region.ScriptEngine.Interfaces;
@@ -283,6 +285,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
 
         string osAvatarName2Key(string firstname, string lastname);
         string osKey2Name(string id);
+        string osSHA256(string input);
 
         // Grid Info Functions
         string osGetGridNick();
@@ -561,6 +564,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         LSL_Key osGetLastChangedEventKey();
         LSL_Float osGetPSTWallclock();
         LSL_Rotation osSlerp(LSL_Rotation a, LSL_Rotation b, LSL_Float amount);
+        vector osSlerp(vector a, vector b, LSL_Float amount);
 
         void osResetAllScripts(LSL_Integer AllLinkset);
         LSL_Integer osIsNotValidNumber(LSL_Float v);
@@ -575,16 +579,24 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api.Interfaces
         vector osGetLinkStandTarget(LSL_Integer linkNumber);
         LSL_Integer osClearObjectAnimations();
 
-        LSL_Float osGetApparentTime();
+        LSL_Float  osGetApparentTime();
         LSL_String osGetApparentTimeString(LSL_Integer format24);
-        LSL_Float osGetApparentRegionTime();
+        LSL_Float  osGetApparentRegionTime();
         LSL_String osGetApparentRegionTimeString(LSL_Integer format24);
 
         LSL_Integer osReplaceAgentEnvironment(LSL_Key agentkey, LSL_Integer transition, LSL_String daycycle);
         LSL_Integer osReplaceParcelEnvironment(LSL_Integer transition, LSL_String daycycle);
         LSL_Integer osReplaceRegionEnvironment(LSL_Integer transition, LSL_String daycycle,
-           LSL_Float daylen, LSL_Float dayoffset, LSL_Float altitude1, LSL_Float altitude2, LSL_Float altitude3);
+          LSL_Float daylen, LSL_Float dayoffset, LSL_Float altitude1, LSL_Float altitude2, LSL_Float altitude3);
         LSL_Integer osResetEnvironment(LSL_Integer parcelOrRegion, LSL_Integer transition);
         LSL_Float osPerlinNoise2D(LSL_Float x, LSL_Float y, LSL_Integer octaves, LSL_Float persistence);
+
+        void osParticleSystem(LSL_List rules);
+        void osLinkParticleSystem(LSL_Integer linknumber, LSL_List rules);
+
+        LSL_Integer osNpcLookAt(LSL_Key npckey, LSL_Integer type, LSL_Key objkey, vector offset);
+
+        LSL_Integer osAvatarType(LSL_Key avkey);
+        LSL_Integer osAvatarType(LSL_String sFirstName, LSL_String sLastName);
     }
 }

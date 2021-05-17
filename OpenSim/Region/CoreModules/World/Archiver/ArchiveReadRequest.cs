@@ -221,7 +221,8 @@ namespace OpenSim.Region.CoreModules.World.Archiver
             m_rotation = options.ContainsKey("rotation") ? (float)options["rotation"] : 0f;
 
             m_boundingOrigin = Vector3.Zero;
-            m_boundingSize = new Vector3(scene.RegionInfo.RegionSizeX, scene.RegionInfo.RegionSizeY, float.MaxValue);
+            m_boundingOrigin.Z = Constants.MinSimulationHeight;
+            m_boundingSize = new Vector3(scene.RegionInfo.RegionSizeX, scene.RegionInfo.RegionSizeY, Constants.MaxSimulationHeight - Constants.MinSimulationHeight);
 
             if (options.ContainsKey("bounding-origin"))
             {
@@ -437,9 +438,7 @@ namespace OpenSim.Region.CoreModules.World.Archiver
             {
                 WorkManager.RunInThread(o =>
                 {
-                    Thread.Sleep(15000);
                     m_log.Info("[ARCHIVER]: Starting scripts in scene objects...");
-
                     foreach (DearchiveContext sceneContext in sceneContexts.Values)
                     {
                         foreach (SceneObjectGroup sceneObject in sceneContext.SceneObjects)
@@ -605,6 +604,13 @@ namespace OpenSim.Region.CoreModules.World.Archiver
                     if (m_displacement != Vector3.Zero)
                     {
                         pos += m_displacement;
+                        if (pos.X < 0 || pos.X >= scene.RegionInfo.RegionSizeX
+                            || pos.Y < 0 || pos.Y >= scene.RegionInfo.RegionSizeY
+                            || pos.Z < Constants.MinSimulationHeight || pos.Z > Constants.MaxSimulationHeight)
+                        {
+                            if (m_debug) m_log.DebugFormat("[ARCHIVER]: Skipping object from OAR After displacement clip {0}.", pos.ToString());
+                            continue;
+                        }
                         if (m_debug) m_log.DebugFormat("[ARCHIVER]: After displacement, object from OAR is at scene position {0}.", pos.ToString());
                     }
                     sceneObject.AbsolutePosition = pos;
@@ -632,8 +638,10 @@ namespace OpenSim.Region.CoreModules.World.Archiver
                 if (scene.AddRestoredSceneObject(sceneObject, true, false))
                 {
                     sceneObjectsLoadedCount++;
-                    sceneObject.CreateScriptInstances(0, false, scene.DefaultScriptEngine, 0);
-                    sceneObject.ResumeScripts();
+                    sceneObjects.Add(sceneObject);
+
+                    //sceneObject.CreateScriptInstances(0, false, scene.DefaultScriptEngine, 0);
+                    //sceneObject.ResumeScripts();
                 }
             }
 
@@ -674,7 +682,7 @@ namespace OpenSim.Region.CoreModules.World.Archiver
                         part.CreatorID = m_defaultUser;
                 }
                 if (UserManager != null)
-                    UserManager.AddUser(part.CreatorID, part.CreatorData);
+                    UserManager.AddCreatorUser(part.CreatorID, part.CreatorData);
 
                 if (!(ResolveUserUuid(scene, part.OwnerID) || ResolveGroupUuid(part.OwnerID)))
                     part.OwnerID = m_defaultUser;
@@ -719,7 +727,7 @@ namespace OpenSim.Region.CoreModules.World.Archiver
                         }
 
                         if (UserManager != null)
-                            UserManager.AddUser(kvp.Value.CreatorID, kvp.Value.CreatorData);
+                            UserManager.AddCreatorUser(kvp.Value.CreatorID, kvp.Value.CreatorData);
 
                         if (!ResolveGroupUuid(kvp.Value.GroupID))
                             kvp.Value.GroupID = UUID.Zero;
@@ -1036,7 +1044,7 @@ namespace OpenSim.Region.CoreModules.World.Archiver
             ViewerEnvironment regionEnv = null;
             try
             {
-                loadedRegionSettings = RegionSettingsSerializer.Deserialize(data, out regionEnv);
+                loadedRegionSettings = RegionSettingsSerializer.Deserialize(data, out regionEnv, scene.RegionInfo.EstateSettings);
             }
             catch (Exception e)
             {
@@ -1095,6 +1103,8 @@ namespace OpenSim.Region.CoreModules.World.Archiver
 
             currentRegionSettings.CacheID = UUID.Random();
             currentRegionSettings.Save();
+
+            scene.EstateDataServiceSafe?.StoreEstateSettings(scene.RegionInfo.EstateSettings);
 
             IEstateModule estateModule = scene.RequestModuleInterface<IEstateModule>();
             if (estateModule != null)

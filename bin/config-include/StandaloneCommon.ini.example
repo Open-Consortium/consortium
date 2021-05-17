@@ -47,9 +47,10 @@
     ;; This is a default that can be overwritten in some sections.
     ; GatekeeperURI = "${Const|BaseURL}:${Const|PublicPort}"
 
-    ;# {GatekeeperURIAlias} {Hypergrid} {Old hostnames (FQDN), or IPs of the gatekeeper of this world and port (default 80 or 443)} {}
-    ;; comma separated list, 
-    ;; in case there was for example a dns change, etc
+    ;# {GatekeeperURIAlias} {Hypergrid} {alternative hostnames (FQDN) or IPs of the gatekeeper of this world and port (default 80 or 443 if entry starts with https://)} {}
+    ;; comma separated list,
+    ;; this is to allow this world to identify this entries also as references to itself
+    ;; entries can be unsecure url (host:port) if using ssl, direct login url if diferent, old grid url, etc
     ; GatekeeperURIAlias = myoldname.something.org, 127.0.0.1,127.0.0.1:8043
 
     ;# {HomeURI} {Hypergrid} {The Home URL of this world} {}
@@ -60,9 +61,9 @@
     ;; This is a default that can be overwritten in some sections.
     HomeURI = "${Const|BaseURL}:${Const|PublicPort}"
 
-    ;# {HomeURIAlias} {Hypergrid} {Old hostnames (FQDN), or IPs of the gatekeeper of this world and port (default 80 or 443)} {}
+    ;# {HomeURIAlias} {Hypergrid} {alternative hostnames (FQDN), or IPs of the home service of this world and port (default 80 or 443)} {}
     ;; comma separated list, 
-    ;; in case there was for example a dns change, etc
+    ;; see GatekeeperURIAlias
     ; HomeURIAlias = myoldname.something.org, 127.0.0.1,127.0.0.1:8043	
 
 [Modules]
@@ -250,6 +251,11 @@
     ; HG user domain, if you have one
     ; this is the entry point for all user-related HG services
     ; uas = ${Const|BaseURL}:${Const|PublicPort}/
+
+    ;; a http page for grid status
+    ;GridStatus = ${Const|BaseURL}:${Const|PublicPort}/GridStatus
+    ;; a RSS page for grid status
+    ;GridStatusRSS = ${Const|BaseURL}:${Const|PublicPort}/GridStatusRSS
 
 [MapImageService]
     ; Set this if you want to change the default

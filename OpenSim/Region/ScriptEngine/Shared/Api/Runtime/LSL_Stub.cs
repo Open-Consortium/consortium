@@ -43,6 +43,8 @@ using LSL_Rotation = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Quaternion;
 using LSL_String = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
 using LSL_Vector = OpenSim.Region.ScriptEngine.Shared.LSL_Types.Vector3;
 
+#pragma warning disable IDE1006
+
 namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 {
     public partial class ScriptBaseClass : MarshalByRefObject
@@ -2014,6 +2016,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public LSL_Vector llWind(LSL_Vector offset)
         {
             return m_LSL_Functions.llWind(offset);
+        }
+
+        public LSL_String llXorBase64(string str1, string str2)
+        {
+            return m_LSL_Functions.llXorBase64(str1, str2);
         }
 
         public LSL_String llXorBase64Strings(string str1, string str2)

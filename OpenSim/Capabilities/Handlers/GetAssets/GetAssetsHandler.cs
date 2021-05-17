@@ -86,6 +86,7 @@ namespace OpenSim.Capabilities.Handlers
 
             if (m_assetService == null)
             {
+                //m_log.Warn("[GETASSET]: no service"); 
                 response.StatusCode = (int)HttpStatusCode.ServiceUnavailable;
                 response.KeepAlive = false;
                 return;
@@ -111,7 +112,7 @@ namespace OpenSim.Capabilities.Handlers
                 }
             }
 
-            if (type == AssetType.Unknown || String.IsNullOrEmpty(assetStr))
+            if (type == AssetType.Unknown || string.IsNullOrEmpty(assetStr))
             {
                 //m_log.Warn("[GETASSET]: Unknown type: " + query);
                 m_log.Warn("[GETASSET]: Unknown type");
@@ -131,7 +132,7 @@ namespace OpenSim.Capabilities.Handlers
             AssetBase asset = m_assetService.GetCached(assetID.ToString());
             if (asset == null)
             {
-                if (String.IsNullOrWhiteSpace(serviceURL))
+                if (string.IsNullOrWhiteSpace(serviceURL))
                 {
                     if (m_externalURL != string.Empty)
                     {
@@ -161,11 +162,23 @@ namespace OpenSim.Capabilities.Handlers
                     response.StatusCode = (int)HttpStatusCode.NotFound;
                     return;
                 }
+
                 // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
             }
 
             if (asset.Type != (sbyte)type)
+            {
+                m_log.Warn("[GETASSET]: asset with wrong type: " + assetStr + " " + asset.Type.ToString() + " != " + ((sbyte)type).ToString());
+                response.StatusCode = (int)HttpStatusCode.NotFound;
                 return;
+            }
+
+            if (asset.Data.Length == 0)
+            {
+                m_log.Warn("[GETASSET]: asset with empty data: " + assetStr +" type " + asset.Type.ToString());
+                response.StatusCode = (int)HttpStatusCode.NotFound;
+                return;
+            }
 
             int len = asset.Data.Length;
 
@@ -179,26 +192,27 @@ namespace OpenSim.Capabilities.Handlers
             int start, end;
             if (Util.TryParseHttpRange(range, out start, out end))
             {
-                // Before clamping start make sure we can satisfy it in order to avoid
-                // sending back the last byte instead of an error status
+                // viewers do send broken start, then flag good assets as bad
                 if (start >= asset.Data.Length)
                 {
-                    response.StatusCode = (int)HttpStatusCode.RequestedRangeNotSatisfiable;
-                    return;
+                    //m_log.Warn("[GETASSET]: bad start: " + range);
+                    response.StatusCode = (int)HttpStatusCode.OK;
                 }
-
-                if (end == -1)
-                    end = asset.Data.Length - 1;
                 else
-                    end = Utils.Clamp(end, 0, asset.Data.Length - 1);
+                {
+                    if (end == -1)
+                        end = asset.Data.Length - 1;
+                    else
+                        end = Utils.Clamp(end, 0, asset.Data.Length - 1);
 
-                start = Utils.Clamp(start, 0, end);
-                len = end - start + 1;
+                    start = Utils.Clamp(start, 0, end);
+                    len = end - start + 1;
 
                 //m_log.Debug("Serving " + start + " to " + end + " of " + texture.Data.Length + " bytes for texture " + texture.ID);
-                response.AddHeader("Content-Range", String.Format("bytes {0}-{1}/{2}", start, end, asset.Data.Length));
+                response.AddHeader("Content-Range", string.Format("bytes {0}-{1}/{2}", start, end, asset.Data.Length));
                 response.StatusCode = (int)HttpStatusCode.PartialContent;
                 response.RawBufferStart = start;
+                }
             }
             else
                 response.StatusCode = (int)HttpStatusCode.OK;

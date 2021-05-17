@@ -50,6 +50,12 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
     public class UserManagementModule : ISharedRegionModule, IUserManagement, IPeople
     {
         private const int BADURLEXPIRE = 2 * 60;
+        private const int NOEXPIRE = int.MinValue;
+        private const int LOCALEXPIRE = 3600000;
+        private const int HGEXPIRE = 3600000;
+        private const int BADEXPIRE = 3600000;
+        private const int BADHGEXPIRE =600000;
+
         private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         protected bool m_Enabled;
@@ -58,11 +64,11 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
         protected IServiceThrottleModule m_ServiceThrottle;
         protected IUserAccountService m_userAccountService = null;
         protected IGridUserService m_gridUserService = null;
-        
+
         protected GridInfo m_thisGridInfo;
 
         // The cache
-        protected ExpiringCacheOS<UUID, UserData> m_userCacheByID = new ExpiringCacheOS<UUID, UserData>(60000);
+        protected ExpiringCacheOS<UUID, UserData> m_userCacheByID = new ExpiringCacheOS<UUID, UserData>(120000);
 
         protected bool m_DisplayChangingHomeURI = false;
 
@@ -206,7 +212,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
 //            m_log.DebugFormat(
 //                "[USER MANAGEMENT MODULE]: Handling request for name binding of UUID {0} from {1}",
 //                uuid, remote_client.Name);
-            if(m_Scenes.Count <= 0)
+            if(!m_Enabled || m_Scenes.Count <= 0)
                 return;
 
             if (m_userCacheByID.TryGetValue(uuid, out UserData user))
@@ -246,29 +252,16 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
             client.SendAvatarPickerReply(RequestID, users);
         }
 
-        public bool CheckUrl(string url, out bool islocal, out Uri uri)
+        public bool CheckUrl(string url, out bool islocal, out OSHHTPHost host)
         {
-            islocal = false;
-            if (string.IsNullOrWhiteSpace(url))
+            host = new OSHHTPHost(url);
+            int type = m_thisGridInfo.IsLocalGrid(host);
+            if(type < 0 )
             {
-                uri = null;
-                islocal = true;
-                return true;
-            }
-            try
-            {
-                uri = new Uri(url, UriKind.Absolute);
-            }
-            catch
-            {
-                uri = null;
-                islocal = true;
+                islocal = false;
                 return false;
             }
-
-            string host = uri.DnsSafeHost.ToLower();
-
-            islocal = m_thisGridInfo.IsLocalHome(host) == 1;
+            islocal = type == 1;
             return true;
         }
 
@@ -340,13 +333,13 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
         protected virtual void CacheCreators(SceneObjectGroup sog)
         {
             //m_log.DebugFormat("[USER MANAGEMENT MODULE]: processing {0} {1}; {2}", sog.RootPart.Name, sog.RootPart.CreatorData, sog.RootPart.CreatorIdentification);
-            AddUser(sog.RootPart.CreatorID, sog.RootPart.CreatorData);
+            AddCreatorUser(sog.RootPart.CreatorID, sog.RootPart.CreatorData);
 
             foreach (SceneObjectPart sop in sog.Parts)
             {
-                AddUser(sop.CreatorID, sop.CreatorData);
+                AddCreatorUser(sop.CreatorID, sop.CreatorData);
                 foreach (TaskInventoryItem item in sop.TaskInventory.Values)
-                    AddUser(item.CreatorID, item.CreatorData);
+                    AddCreatorUser(item.CreatorID, item.CreatorData);
             }
         }
 
@@ -418,21 +411,252 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
 
         public virtual Dictionary<UUID,string> GetUsersNames(string[] ids, UUID scopeID)
         {
-            Dictionary<UUID,string> ret = new Dictionary<UUID,string>();
+            var ret = new Dictionary<UUID,string>();
             if(m_Scenes.Count <= 0)
                 return ret;
 
-            UserData userdata = new UserData();
-            UUID uuid = UUID.Zero;
-            foreach(string id in ids)
+            List<string> missing = new List<string>(ids.Length);
+            var untried = new Dictionary<UUID, UserData>();
+            foreach (string id in ids)
             {
-                if(UUID.TryParse(id, out uuid))
+                if(!UUID.TryParse(id, out UUID uuid) || uuid == UUID.Zero)
+                    continue;
+
+                if (m_userCacheByID.TryGetValue(uuid, out UserData userdata))
                 {
-                    if (GetUser(uuid, out userdata))
-                        ret[uuid] = userdata.FirstName + " " + userdata.LastName;
-                    else
-                        ret[uuid] = "Unknown " + uuid.ToString() + "UMM1";
+                    string name = userdata.FirstName + " " + userdata.LastName;
+                    if (userdata.HasGridUserTried)
+                    {
+                        ret[uuid] = name;
+                        continue;
+                    }
+                    untried[uuid] = userdata;
                 }
+                missing.Add(id);
+            }
+
+            if(missing.Count == 0)
+                return ret;
+
+            ids = null;
+
+            List<UserAccount> accounts = m_userAccountService.GetUserAccounts(scopeID, missing);
+            if (accounts.Count != 0)
+            {
+                foreach (UserAccount uac in accounts)
+                {
+                    if (uac != null)
+                    {
+                        string name = uac.FirstName + " " + uac.LastName;
+                        UUID id = uac.PrincipalID;
+
+                        var userdata = new UserData();
+                        userdata.Id = id;
+                        userdata.FirstName = uac.FirstName;
+                        userdata.LastName = uac.LastName;
+                        userdata.HomeURL = string.Empty;
+                        userdata.IsUnknownUser = false;
+                        userdata.IsLocal = true;
+                        userdata.HasGridUserTried = true;
+                        m_userCacheByID.Add(id, userdata, 1800000);
+
+                        ret[id] = name;
+                        missing.Remove(id.ToString()); // slowww
+                        untried.Remove(id);
+                    }
+                }
+            }
+
+            if (missing.Count == 0 || m_gridUserService == null)
+                return ret;
+
+            GridUserInfo[] pinfos = m_gridUserService.GetGridUserInfo(missing.ToArray());
+            if (pinfos.Length > 0)
+            {
+                foreach (GridUserInfo uInfo in pinfos)
+                {
+                    if (uInfo != null && uInfo.UserID.Length >= 36)
+                    {
+                        string url, first, last, tmp;
+                        UUID u;
+                        if (uInfo.UserID.Length >= 36 && Util.ParseUniversalUserIdentifier(uInfo.UserID, out u, out url, out first, out last, out tmp))
+                        {
+                            bool isvalid = CheckUrl(url, out bool islocal, out OSHHTPHost host);
+                            var userdata = new UserData();
+                            userdata.Id = u;
+                            if (isvalid)
+                            {
+                                if (islocal)
+                                {
+                                    userdata.FirstName = first;
+                                    userdata.LastName = last;
+                                    userdata.HomeURL = string.Empty;
+                                    userdata.IsLocal = true;
+                                }
+                                else
+                                {
+                                    userdata.FirstName = first.Replace(" ", ".") + "." + last.Replace(" ", ".");
+                                    userdata.HomeURL = host.URI;
+                                    userdata.LastName = "@" + host.HostAndPort;
+                                    userdata.IsLocal = false;
+                                }
+                                userdata.IsUnknownUser = false;
+                                userdata.HasGridUserTried = true;
+                                m_userCacheByID.Add(u, userdata, 1800000);
+
+                                string name = userdata.FirstName + " " + userdata.LastName;
+                                ret[u] = name;
+                                missing.Remove(u.ToString());
+                                untried.Remove(u);
+                            }
+                        }
+                        else
+                            m_log.DebugFormat("[USER MANAGEMENT MODULE]: Unable to parse UUI {0}", uInfo.UserID);
+                    }
+                }
+            }
+
+            // add the untried in cache
+            if (untried.Count > 0)
+            {
+                foreach (UserData ud in untried.Values)
+                {
+                    UUID id = ud.Id;
+                    ud.HasGridUserTried = true;
+                    m_userCacheByID.Add(id, ud, 1800000);
+
+                    ret[id] = ud.FirstName + " " + ud.LastName;
+                    missing.Remove(id.ToString());
+                }
+            }
+
+            // add the UMMthings ( not sure we should)
+            if (missing.Count > 0)
+            {
+                foreach (string id in missing)
+                {
+                    if (UUID.TryParse(id, out UUID uuid))
+                        ret[uuid] = "Unknown UserUMMAU43";
+                }
+            }
+
+            return ret;
+        }
+
+        public virtual Dictionary<UUID, string> GetKnownUserNames(string[] ids, UUID scopeID)
+        {
+            var ret = new Dictionary<UUID, string>();
+            if (m_Scenes.Count <= 0)
+                return ret;
+
+            List<string> missing = new List<string>(ids.Length);
+            var untried = new Dictionary<UUID, UserData>();
+            foreach (string id in ids)
+            {
+                if (!UUID.TryParse(id, out UUID uuid) || uuid == UUID.Zero)
+                    continue;
+
+                if (m_userCacheByID.TryGetValue(uuid, out UserData userdata))
+                {
+                    if (userdata.HasGridUserTried)
+                    {
+                        if(!userdata.IsUnknownUser)
+                            ret[uuid] = userdata.FirstName + " " + userdata.LastName;
+                        continue;
+                    }
+                    else
+                        untried[uuid] = userdata;
+                }
+                missing.Add(id);
+            }
+
+            if (missing.Count == 0)
+                return ret;
+
+            ids = null;
+
+            List<UserAccount> accounts = m_userAccountService.GetUserAccounts(scopeID, missing);
+            if (accounts.Count != 0)
+            {
+                foreach (UserAccount uac in accounts)
+                {
+                    if (uac != null)
+                    {
+                        UUID id = uac.PrincipalID;
+
+                        var userdata = new UserData();
+                        userdata.Id = id;
+                        userdata.FirstName = uac.FirstName;
+                        userdata.LastName = uac.LastName;
+                        userdata.HomeURL = string.Empty;
+                        userdata.IsUnknownUser = false;
+                        userdata.IsLocal = true;
+                        userdata.HasGridUserTried = true;
+                        m_userCacheByID.Add(id, userdata, 1800000);
+
+                        ret[id] = uac.FirstName + " " + uac.LastName;
+                        missing.Remove(id.ToString()); // slowww
+                        untried.Remove(id);
+                    }
+                }
+            }
+
+            if (missing.Count == 0 || m_gridUserService == null)
+                return ret;
+
+            GridUserInfo[] pinfos = m_gridUserService.GetGridUserInfo(missing.ToArray());
+            missing = null;
+            if (pinfos.Length > 0)
+            {
+                foreach (GridUserInfo uInfo in pinfos)
+                {
+                    if (uInfo != null && uInfo.UserID.Length >= 36)
+                    {
+                        string url, first, last, tmp;
+                        UUID uuid;
+                        if (Util.ParseUniversalUserIdentifier(uInfo.UserID, out uuid, out url, out first, out last, out tmp))
+                        {
+                            bool isvalid = CheckUrl(url, out bool islocal, out OSHHTPHost host);
+                            var userdata = new UserData();
+                            userdata.Id = uuid;
+                            if (isvalid)
+                            {
+                                if (islocal)
+                                {
+                                    userdata.FirstName = first;
+                                    userdata.LastName = last;
+                                    userdata.HomeURL = string.Empty;
+                                    userdata.IsLocal = true;
+                                }
+                                else
+                                {
+                                    userdata.FirstName = first.Replace(" ", ".") + "." + last.Replace(" ", ".");
+                                    userdata.HomeURL = host.URI;
+                                    userdata.LastName = "@" + host.HostAndPort;
+                                    userdata.IsLocal = false;
+                                }
+
+                                userdata.IsUnknownUser = false;
+                                userdata.HasGridUserTried = true;
+                                m_userCacheByID.Add(uuid, userdata, 1800000);
+
+                                string name = userdata.FirstName + " " + userdata.LastName;
+                                untried.Remove(uuid);
+                                ret[uuid] = name;
+                            }
+                        }
+                        else
+                            m_log.DebugFormat("[USER MANAGEMENT MODULE]: Unable to parse UUI {0}", uInfo.UserID);
+                    }
+                }
+            }
+
+            foreach(UserData ud in untried.Values)
+            {
+                ud.HasGridUserTried = true;
+                m_userCacheByID.Add(ud.Id, ud, 1800000);
+                if(!ud.IsUnknownUser)
+                    ret[ud.Id] = ud.FirstName + " " + ud.LastName;
             }
             return ret;
         }
@@ -476,17 +700,21 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
 
             if(userdata.LastWebFail > 0)
             {
-                if(Util.GetTimeStamp() - userdata.LastWebFail > BADURLEXPIRE) // 5 minutes
+                if(Util.GetTimeStamp() - userdata.LastWebFail > BADURLEXPIRE)
                     return string.Empty;
                 userdata.LastWebFail = -1;
             }
 
             if (userdata.ServerURLs != null)
             {
-                if(userdata.ServerURLs.ContainsKey(serverType) && userdata.ServerURLs[serverType] != null)
-                    return userdata.ServerURLs[serverType].ToString();
-                else
-                    return string.Empty;
+                if(userdata.ServerURLs.TryGetValue(serverType, out object ourl) && ourl != null)
+                {
+                    string turl = ourl as string;
+                    OSHHTPHost otmp = new OSHHTPHost(turl);
+                    if (otmp.IsValidHost)
+                        return otmp.URI;
+                }
+                return string.Empty;
             }
 
             if (!string.IsNullOrEmpty(userdata.HomeURL))
@@ -513,7 +741,12 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                     }
 
                     if (userdata.ServerURLs != null && userdata.ServerURLs.TryGetValue(serverType, out object ourl) && ourl != null)
-                        return ourl.ToString();
+                    {
+                        string turl = ourl as string;
+                        OSHHTPHost otmp = new OSHHTPHost(turl);
+                        if (otmp.IsValidHost)
+                            return otmp.URI;
+                    }
                 }
             }
             return string.Empty;
@@ -544,10 +777,14 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
 
             if (userdata.ServerURLs != null)
             {
-                if (userdata.ServerURLs.ContainsKey(serverType) && userdata.ServerURLs[serverType] != null)
-                    return userdata.ServerURLs[serverType].ToString();
-                else
-                    return string.Empty;
+                if (userdata.ServerURLs.TryGetValue(serverType, out object ourl) && ourl != null)
+                {
+                    string turl = ourl as string;
+                    OSHHTPHost otmp = new OSHHTPHost(turl);
+                    if (otmp.IsValidHost)
+                        return otmp.URI;
+                }
+                return string.Empty;
             }
 
             if (!recentFail && !string.IsNullOrEmpty(userdata.HomeURL))
@@ -577,8 +814,13 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                         recentFail = true;
                     }
 
-                    if (userdata.ServerURLs != null && userdata.ServerURLs.ContainsKey(serverType) && userdata.ServerURLs[serverType] != null)
-                        return userdata.ServerURLs[serverType].ToString();
+                    if (userdata.ServerURLs != null && userdata.ServerURLs.TryGetValue(serverType, out object ourl) && ourl != null)
+                    {
+                        string turl = ourl as string;
+                        OSHHTPHost otmp = new OSHHTPHost(turl);
+                        if (otmp.IsValidHost)
+                            return otmp.URI;
+                    }
                 }
             }
             return string.Empty;
@@ -593,27 +835,23 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
 
         public virtual bool GetUserUUI(UUID userID, out string uui)
         {
-            bool result = GetUser(userID, out UserData ud);
-
-            if (ud != null)
+            if (GetUser(userID, out UserData ud) && ud != null)
             {
-                string homeURL = ud.HomeURL;
-                string first = ud.FirstName, last = ud.LastName;
                 if (ud.LastName.StartsWith("@"))
                 {
                     string[] parts = ud.FirstName.Split('.');
                     if (parts.Length >= 2)
-                    {
-                        first = parts[0];
-                        last = parts[1];
-                    }
-                    uui = userID + ";" + homeURL + ";" + first + " " + last;
-                    return result;
+                        uui = userID.ToString() + ";" + ud.HomeURL + ";" + parts[0] + " " + parts[1];
+                    else
+                        uui = userID.ToString() + ";" + ud.HomeURL + ";" + ud.FirstName + " " + ud.LastName;
                 }
+                else
+                    uui = userID.ToString();
+                return true;
             }
 
             uui = userID.ToString();
-            return result;
+            return false;
         }
 
         #region Cache Management
@@ -662,7 +900,6 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                     userdata.IsUnknownUser = false;
                     userdata.IsLocal = true;
                     userdata.HasGridUserTried = true;
-                    AddUser(account);
                 }
             }
 
@@ -679,9 +916,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                     UUID u;
                     if (uInfo.UserID.Length >= 36 && Util.ParseUniversalUserIdentifier(uInfo.UserID, out u, out url, out first, out last, out tmp))
                     {
-                        bool islocal;
-                        Uri uri;
-                        bool isvalid = CheckUrl(url, out islocal, out uri);
+                        bool isvalid = CheckUrl(url, out bool islocal, out OSHHTPHost host);
 
                         if (isvalid)
                         {
@@ -696,8 +931,8 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                             else
                             {
                                 userdata.FirstName = first.Replace(" ", ".") + "." + last.Replace(" ", ".");
-                                userdata.HomeURL = uri.AbsoluteUri;
-                                userdata.LastName = "@" + uri.Authority;
+                                userdata.HomeURL = host.URI;
+                                userdata.LastName = "@" + host.HostAndPort;
                                 userdata.IsLocal = false;
                                 userdata.IsUnknownUser = false;
                             }
@@ -712,6 +947,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
             }
             /* END: do not wrap this code in any lock here */
 
+            m_userCacheByID.Add(uuid, userdata, 1800000);
             return !userdata.IsUnknownUser;
         }
 
@@ -889,61 +1125,49 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
         public void AddUser(UserAccount account)
         {
             UUID id = account.PrincipalID;
-            if (!m_userCacheByID.ContainsKey(id))
-            {
-                UserData user = new UserData();
-                user.Id = id;
-                user.FirstName = account.FirstName;
-                user.LastName = account.LastName;
-                user.DisplayName = account.DisplayName;
-                user.NameChanged = Utils.UnixTimeToDateTime(account.NameChanged);
-                user.HomeURL = string.Empty;
-                user.IsUnknownUser = false;
-                user.HasGridUserTried = true;
-                user.IsLocal = account.LocalToGrid;
-                m_userCacheByID.Add(id, user, 1800000);
-            }
+            bool local = account.LocalToGrid;
+
+            UserData user = new UserData();
+            user.Id = id;
+            user.FirstName = account.FirstName;
+            user.LastName = account.LastName;
+			user.DisplayName = account.DisplayName;
+			user.NameChanged = Utils.UnixTimeToDateTime(account.NameChanged);
+            user.HomeURL = string.Empty;
+            user.IsUnknownUser = false;
+            user.HasGridUserTried = true;
+            user.IsLocal = local;
+            m_userCacheByID.Add(id, user, local ? LOCALEXPIRE : HGEXPIRE);
         }
 
-        public virtual void AddUser(UUID uuid, string first, string last, bool isNPC = false, int expire = 1800000)
+        public void AddSystemUser(UUID uuid, string first, string last)
         {
-            if (!m_userCacheByID.ContainsKey(uuid))
+            UserData user = new UserData()
             {
-                UserData user = new UserData();
-                user.Id = uuid;
-                user.FirstName = first;
-                user.LastName = last;
-                user.HasGridUserTried = isNPC;
-                if (!isNPC && last.StartsWith("@"))
-                {
-                     string url = last.Substring(1);
-                     bool local;
-                     Uri uri;
-                     if(CheckUrl(url, out local, out uri))
-                     {
-                        if(local)
-                        {
-                            user.IsLocal = true;
-                            user.HomeURL = string.Empty;
-                            user.HasGridUserTried = true;
-                        }
-                        else
-                        {
-                            user.IsLocal = false;
-                            user.HomeURL = uri.AbsoluteUri;
-                            user.HasGridUserTried = false;
-                        }
-                        user.IsUnknownUser = false;
-                    }
-                }
-                else
-                {
-                    user.IsUnknownUser = false;
-                    user.IsLocal = true;
-                    user.HasGridUserTried = true;
-                }
-                m_userCacheByID.Add(uuid, user, isNPC ? int.MaxValue / 16 : expire);
-            }
+                Id = uuid,
+                FirstName = first,
+                LastName = last,
+                IsLocal = true,
+                HasGridUserTried = true,
+                HomeURL = string.Empty,
+                IsUnknownUser = false
+            };
+            m_userCacheByID.Add(uuid, user, NOEXPIRE);
+        }
+
+        public void AddNPCUser(UUID uuid, string first, string last)
+        {
+            UserData user = new UserData()
+            {
+                Id = uuid,
+                FirstName = first,
+                LastName = last,
+                HasGridUserTried = true,
+                IsLocal = true,
+                HomeURL = string.Empty,
+                IsUnknownUser = false
+            };
+            m_userCacheByID.Add(uuid, user, NOEXPIRE);
         }
 
         public virtual void AddUser(UUID uuid, string first, string last, string homeURL)
@@ -971,8 +1195,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
             oldUser.IsUnknownUser = false;
 
             bool local;
-            Uri uri;
-            if (CheckUrl(homeURL, out local, out uri))
+            if (CheckUrl(homeURL, out local, out OSHHTPHost host))
             {
                 if (local)
                 {
@@ -981,13 +1204,15 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                     oldUser.IsLocal = true;
                     oldUser.HomeURL = string.Empty;
                     oldUser.HasGridUserTried = true;
+                    m_userCacheByID.Add(uuid, oldUser, LOCALEXPIRE);
                 }
                 else
                 {
                     oldUser.FirstName = first.Replace(" ", ".") + "." + last.Replace(" ", ".");
-                    oldUser.LastName = "@" + uri.Authority;
-                    oldUser.HomeURL = uri.AbsoluteUri;
+                    oldUser.LastName = "@" + host.HostAndPort;
+                    oldUser.HomeURL = host.URI;
                     oldUser.IsLocal = false;
+                    m_userCacheByID.Add(uuid, oldUser, HGEXPIRE);
                 }
             }
             else
@@ -998,11 +1223,11 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                 oldUser.HomeURL = string.Empty;
                 oldUser.HasGridUserTried = true;
                 oldUser.IsUnknownUser = true;
+                m_userCacheByID.Add(uuid, oldUser, BADEXPIRE);
             }
-            m_userCacheByID.Add(uuid, oldUser, 300000);
         }
 
-        public virtual void AddUser(UUID id, string creatorData)
+        public virtual void AddCreatorUser(UUID id, string creatorData)
         {
             // m_log.InfoFormat("[USER MANAGEMENT MODULE]: Adding user with id {0}, creatorData {1}", id, creatorData);
 
@@ -1025,13 +1250,8 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                     return;
                 firstname = nameparts[0];
                 for(int xi = 1; xi < nameparts.Length; ++xi)
-                {
-                    if(xi != 1)
-                    {
-                        lastname += " ";
-                    }
                     lastname += nameparts[xi];
-                }
+
                 if (string.IsNullOrWhiteSpace(firstname))
                     return;
                 if (string.IsNullOrWhiteSpace(lastname))
@@ -1041,25 +1261,16 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                 return;
 
             homeURL = parts[0];
-            if(homeURL.Length > 10)
-            {
-                string test = homeURL.Substring(10);
-                int indx = test.IndexOf("/");
-                if(indx > 0 && indx != test.Length - 1)
-                    homeURL = homeURL.Substring(0, indx + 10);
-            }
-
-            bool local;
-            Uri uri;
 
             var oldUser = new UserData();
             oldUser.Id = id;
             oldUser.HasGridUserTried = false;
             oldUser.IsUnknownUser = false;
 
-            if (CheckUrl(homeURL, out local, out uri))
+            OSHTTPURI homeuri = new OSHTTPURI(homeURL);
+            if (homeuri.IsValidHost)
             {
-                if (local)
+                if (m_thisGridInfo.IsLocalGrid(homeuri.URL) == 1) // local
                 {
                     oldUser.FirstName = firstname;
                     oldUser.LastName = lastname;
@@ -1070,8 +1281,8 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                 else
                 {
                     oldUser.FirstName = firstname + "." + lastname.Replace(" ", ".");
-                    oldUser.LastName = "@" + uri.Authority;
-                    oldUser.HomeURL = uri.AbsoluteUri;
+                    oldUser.LastName = "@" + homeuri.HostAndPort;
+                    oldUser.HomeURL = homeuri.URL;
                     oldUser.IsLocal = false;
                 }
             }
@@ -1084,7 +1295,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
                 oldUser.HasGridUserTried = true;
                 oldUser.IsUnknownUser = true;
             }
-            m_userCacheByID.Add(id, oldUser, int.MaxValue / 16);
+            m_userCacheByID.Add(id, oldUser, NOEXPIRE);
         }
 
         public bool RemoveUser(UUID uuid)
@@ -1123,8 +1334,8 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
 
         protected virtual void Init(IConfigSource config)
         {
-            AddUser(UUID.Zero, "Unknown", "User", false, int.MaxValue / 16);
-            AddUser(Constants.m_MrOpenSimID, "Mr", "Opensim", false, int.MaxValue / 16);
+            AddSystemUser(UUID.Zero, "Unknown", "User");
+            AddSystemUser(Constants.m_MrOpenSimID, "Mr", "Opensim");
             RegisterConsoleCmds();
 
             IConfig userManagementConfig = config.Configs["UserManagement"];
@@ -1159,10 +1370,7 @@ namespace OpenSim.Region.CoreModules.Framework.UserManagement
 
         protected virtual void HandleResetUserCache(string module, string[] cmd)
         {
-            lock(m_userCacheByID)
-            {
-                m_userCacheByID.Clear();
-            }
+            m_userCacheByID.Clear();
         }
 
         protected virtual void HandleShowUser(string module, string[] cmd)

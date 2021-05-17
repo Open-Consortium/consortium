@@ -172,8 +172,8 @@ namespace OpenSim
 
             MainConsole.Instance = m_console;
 
-            LogEnvironmentInformation();
             RegisterCommonAppenders(Config.Configs["Startup"]);
+            LogEnvironmentInformation();
             RegisterConsoleCommands();
 
             base.StartupSpecific();
@@ -524,9 +524,18 @@ namespace OpenSim
                     presence.Lastname.ToLower().Equals(mainParams[3].ToLower()))
                 {
                     MainConsole.Instance.Output(
-                        String.Format(
                             "Kicking user: {0,-16} {1,-16} {2,-37} in region: {3,-16}",
-                            presence.Firstname, presence.Lastname, presence.UUID, regionInfo.RegionName));
+                            presence.Firstname, presence.Lastname, presence.UUID, regionInfo.RegionName);
+
+                    if (presence.IsNPC)
+                    {
+                        INPCModule npcmodule = presence.Scene.RequestModuleInterface<INPCModule>();
+                        if (npcmodule != null)
+                        {
+                            npcmodule.DeleteNPC(presence.UUID, presence.Scene);
+                            return;
+                        }
+                    }
 
                     // kick client...
                     if (alert != null)

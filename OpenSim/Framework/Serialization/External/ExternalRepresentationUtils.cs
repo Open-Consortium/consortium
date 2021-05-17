@@ -215,9 +215,9 @@ namespace OpenSim.Framework.Serialization.External
             if (xmlData == string.Empty || homeURL == string.Empty || userService == null)
                 return xmlData;
 
-            // Deal with bug
-            xmlData = ExternalRepresentationUtils.SanitizeXml(xmlData);
-
+            // Deal with bug introduced in Oct. 20 2014 (1eb3e6cc43e2a7b4053bc1185c7c88e22356c5e8)
+            // Fix bad assets before sending them elsewhere
+            xmlData = SanitizeXml(xmlData);
             using (StringWriter sw = new StringWriter())
             using (XmlTextWriter writer = new XmlTextWriter(sw))
             using (XmlTextReader wrappedReader = new XmlTextReader(xmlData, XmlNodeType.Element, null))
@@ -225,7 +225,7 @@ namespace OpenSim.Framework.Serialization.External
             {
                 TransformXml(reader, writer, sceneName, homeURL, userService, scopeID);
 
-                //                Console.WriteLine("Output: [{0}]", sw.ToString());
+                // Console.WriteLine("Output: [{0}]", sw.ToString());
 
                 return sw.ToString();
             }
@@ -241,12 +241,12 @@ namespace OpenSim.Framework.Serialization.External
 
             while (reader.Read())
             {
-                //                Console.WriteLine("Depth: {0}, name {1}", reader.Depth, reader.Name);
+                // Console.WriteLine("Depth: {0}, name {1}", reader.Depth, reader.Name);
 
                 switch (reader.NodeType)
                 {
                     case XmlNodeType.Attribute:
-                        //                    Console.WriteLine("FOUND ATTRIBUTE {0}", reader.Name);
+                        // Console.WriteLine("FOUND ATTRIBUTE {0}", reader.Name);
                         writer.WriteAttributeString(reader.Name, reader.Value);
                         break;
 
@@ -394,13 +394,26 @@ namespace OpenSim.Framework.Serialization.External
         }
 
         /// <summary>
-        /// Sanitation for bug introduced in Oct. 20 (1eb3e6cc43e2a7b4053bc1185c7c88e22356c5e8)
+        /// Sanitation for bug introduced in Oct. 20 2014 (1eb3e6cc43e2a7b4053bc1185c7c88e22356c5e8)
         /// </summary>
         /// <param name="xmlData"></param>
         /// <returns></returns>
         public static string SanitizeXml(string xmlData)
         {
-            return xmlData.Replace("xmlns:xmlns:", "xmlns:");
+            if (!string.IsNullOrWhiteSpace(xmlData))
+            {
+                int indx = xmlData.IndexOf("xmlns:xmlns:");
+                if(indx > 0)
+                {
+                    int indx2 = indx + 12;
+                    while(xmlData[indx2 + 5] == ':')
+                        indx2 += 6;
+
+                    string bad = xmlData.Substring(indx, indx2 - indx);
+                    xmlData = xmlData.Replace(bad, "xmlns:");
+                }
+            }
+            return xmlData;
         }
     }
 }

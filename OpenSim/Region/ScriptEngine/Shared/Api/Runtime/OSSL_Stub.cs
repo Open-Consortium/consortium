@@ -45,6 +45,8 @@ using LSL_Key = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLString;
 using LSL_Float = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLFloat;
 using LSL_Integer = OpenSim.Region.ScriptEngine.Shared.LSL_Types.LSLInteger;
 
+#pragma warning disable IDE1006
+
 namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
 {
     public partial class ScriptBaseClass : MarshalByRefObject
@@ -519,6 +521,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public string osKey2Name(string id)
         {
             return m_OSSL_Functions.osKey2Name(id);
+        }
+
+        public string osSHA256(string input)
+        {
+            return m_OSSL_Functions.osSHA256(input);
         }
 
         public string osGetGridNick()
@@ -1432,6 +1439,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
             return m_OSSL_Functions.osSlerp(a, b, amount);
         }
 
+        public vector osSlerp(vector a, vector b, LSL_Float amount)
+        {
+            return m_OSSL_Functions.osSlerp(a, b, amount);
+        }
+
         public void osResetAllScripts(LSL_Integer allLinkSet)
         {
             m_OSSL_Functions.osResetAllScripts(allLinkSet);
@@ -1527,6 +1539,31 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public LSL_Integer osResetEnvironment(LSL_Integer parcelOrRegion, LSL_Integer transition)
         {
             return m_OSSL_Functions.osResetEnvironment(parcelOrRegion, transition);
+        }
+
+        public void osParticleSystem(LSL_List rules)
+        {
+            m_OSSL_Functions.osParticleSystem(rules);
+        }
+
+        public void osLinkParticleSystem(LSL_Integer linknumber, LSL_List rules)
+        {
+            m_OSSL_Functions.osLinkParticleSystem(linknumber, rules);
+        }
+
+        public LSL_Integer osNpcLookAt(LSL_Key npckey, LSL_Integer type, LSL_Key objkey, vector offset)
+        {
+            return m_OSSL_Functions.osNpcLookAt(npckey, type, objkey, offset);
+        }
+
+        public LSL_Integer osAvatarType(LSL_Key avkey)
+        {
+            return m_OSSL_Functions.osAvatarType(avkey);
+        }
+
+        public LSL_Integer osAvatarType(LSL_String sFirstName, LSL_String sLastName)
+        {
+            return m_OSSL_Functions.osAvatarType(sFirstName, sLastName);
         }
     }
 }

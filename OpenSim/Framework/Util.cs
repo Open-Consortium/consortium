@@ -38,6 +38,7 @@ using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
@@ -475,6 +476,8 @@ namespace OpenSim.Framework
             return false;
         }
 
+
+        
         public static bool buildHGRegionURI(string inputName, out string serverURI, out string regionName)
         {
             serverURI = string.Empty;
@@ -490,7 +493,7 @@ namespace OpenSim.Framework
                 //          grid.example.com
 
                 string host;
-                uint port = 80;
+                int port = 80;
 
                 string[] parts = inputName.Split(new char[] { ':' });
                 int indx;
@@ -518,7 +521,7 @@ namespace OpenSim.Framework
                         if(indx < 0)
                         {
                             // If it's a number then assume it's a port. Otherwise, it's a region name.
-                            if (!UInt32.TryParse(parts[1], out port))
+                            if (!int.TryParse(parts[1], out port))
                             {
                                 port = 80;
                                 regionName = parts[1];
@@ -529,7 +532,7 @@ namespace OpenSim.Framework
                             string portstr = parts[1].Substring(0, indx);
                             if(indx + 2 < parts[1].Length)
                                 regionName = parts[1].Substring(indx + 1);
-                            if (!UInt32.TryParse(portstr, out port))
+                            if (!int.TryParse(portstr, out port))
                                 port = 80;
                         }
                     }
@@ -717,6 +720,21 @@ namespace OpenSim.Framework
             }
 
             return sb.ToString();
+        }
+
+        // helper for services responses.
+        // they send identical messages, but each own chars case 
+        public static byte[] sucessResultSuccess = osUTF8.GetASCIIBytes("<?xml version =\"1.0\"?><ServerResponse><Result>Success</Result></ServerResponse>");
+
+        public static byte[] ResultFailureMessageStart = osUTF8.GetASCIIBytes("<?xml version =\"1.0\"?><ServerResponse><Result>Failure</Result><Message>");
+        public static byte[] ResultFailureMessageEnd = osUTF8.GetASCIIBytes("</Message></ServerResponse>");
+        public static byte[] ResultFailureMessage(string message)
+        {
+            osUTF8  res = new osUTF8(ResultFailureMessageStart.Length + ResultFailureMessageEnd.Length + message.Length);
+            res.Append(ResultFailureMessageStart);
+            res.Append(message);
+            res.Append(ResultFailureMessageEnd);
+            return res.ToArray();
         }
 
         public static byte[] DocToBytes(XmlDocument doc)
@@ -1020,13 +1038,9 @@ namespace OpenSim.Framework
             {
                 m_log.ErrorFormat(
                     "[UTIL]: Couldn't find native Windows library at {0}", nativeLibraryPath);
-
                 return false;
             }
-            else
-            {
-                return true;
-            }
+            return true;
         }
 
         public static bool IsEnvironmentSupported(ref string reason)
@@ -1123,6 +1137,61 @@ namespace OpenSim.Framework
         /// <param name="data"></param>
         /// <returns></returns>
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static char LowNibbleToHexByteCharLowcaps(byte b)
+        {
+            b &= 0x0f;
+            return (char)(b > 9 ? b + 0x57 : b + '0');
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static char HighNibbleToHexByteCharLowcaps(byte b)
+        {
+            b >>= 4;
+            return (char)(b > 9 ? b + 0x57 : b + '0');
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static char LowNibbleToHexByteCharHighcaps(byte b)
+        {
+            b &= 0x0f;
+            return (char)(b > 9 ? b + 0x37 : b + '0');
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static char HighNibbleToHexByteCharHighcaps(byte b)
+        {
+            b >>= 4;
+            return (char)(b > 9 ? b + 0x37 : b + '0');
+        }
+
+        public static string bytesToHexString(byte[] bytes, bool lowerCaps)
+        {
+            if(bytes == null || bytes.Length == 0)
+                return string.Empty;
+
+            char[] chars = new char[2* bytes.Length];
+            if(lowerCaps)
+            {
+                for (int i = 0, j = 0; i < bytes.Length; ++i)
+                {
+                    byte b = bytes[i];
+                    chars[j++] = HighNibbleToHexByteCharLowcaps(b);
+                    chars[j++] = LowNibbleToHexByteCharLowcaps(b);
+                }
+            }
+            else
+            {
+                for (int i = 0, j = 0; i < bytes.Length; ++i)
+                {
+                    byte b = bytes[i];
+                    chars[j++] = HighNibbleToHexByteCharHighcaps(b);
+                    chars[j++] = LowNibbleToHexByteCharHighcaps(b);
+                }
+            }
+            return new string(chars);
+        }
+
         public static string SHA1Hash(string data, Encoding enc)
         {
             return SHA1Hash(enc.GetBytes(data));
@@ -1141,7 +1210,7 @@ namespace OpenSim.Framework
         public static string SHA1Hash(byte[] data)
         {
             byte[] hash = ComputeSHA1Hash(data);
-            return BitConverter.ToString(hash).Replace("-", String.Empty);
+            return bytesToHexString(hash, false);
         }
 
         private static byte[] ComputeSHA1Hash(byte[] src)
@@ -2829,7 +2898,8 @@ namespace OpenSim.Framework
                 ThreadPoolName = "Util",
                 IdleTimeout = 20000,
                 MaxWorkerThreads = maxThreads,
-                MinWorkerThreads = minThreads
+                MinWorkerThreads = minThreads,
+                SuppressFlow = true
             };
 
             m_ThreadPool = new SmartThreadPool(startInfo);
@@ -3044,7 +3114,6 @@ namespace OpenSim.Framework
                     finally
                     {
                         Interlocked.Decrement(ref numRunningThreadFuncs);
-                        threadInfo.Ended();
                         activeThreads.TryRemove(threadFuncNum, out ThreadInfo dummy);
                         if (loggingEnabled && threadInfo.LogThread)
                             m_log.DebugFormat("Exit threadfunc {0} ({1})", threadFuncNum, FormatDuration(threadInfo.Elapsed()));
@@ -3055,7 +3124,7 @@ namespace OpenSim.Framework
                 };
             }
 
-            long numQueued = Interlocked.Increment(ref numQueuedThreadFuncs);
+            Interlocked.Increment(ref numQueuedThreadFuncs);
             try
             {
                 threadInfo.LogThread = false;
@@ -3072,7 +3141,7 @@ namespace OpenSim.Framework
                     case FireAndForgetMethod.SmartThreadPool:
                         if (m_ThreadPool == null)
                             InitThreadPool(2, 15);
-                        threadInfo.WorkItem = m_ThreadPool.QueueWorkItem((cb, o) => {cb(o); cb = null;}, realCallback, obj);
+                        threadInfo.WorkItem = m_ThreadPool.QueueWorkItem(realCallback, obj);
                         break;
                     case FireAndForgetMethod.Thread:
                         Thread thread = new Thread(delegate(object o) { realCallback(o); realCallback = null;});
@@ -3596,28 +3665,53 @@ namespace OpenSim.Framework
         /// <param name="secret">the secret part</param>
         public static bool ParseUniversalUserIdentifier(string value, out UUID uuid, out string url, out string firstname, out string lastname, out string secret)
         {
-            uuid = UUID.Zero; url = string.Empty; firstname = "Unknown"; lastname = "UserUPUUI"; secret = string.Empty;
+            uuid = UUID.Zero;
+            url = string.Empty;
+            firstname = "Unknown";
+            lastname = "UserUPUUI";
+            secret = string.Empty;
 
             string[] parts = value.Split(';');
-            if (parts.Length >= 1)
-                if (!UUID.TryParse(parts[0], out uuid))
-                    return false;
+            if (parts.Length < 1)
+                return false;
+
+            if (!UUID.TryParse(parts[0], out uuid))
+                return false;
 
             if (parts.Length >= 2)
-                url = parts[1];
-
-            if (parts.Length >= 3)
             {
-                string[] name = parts[2].Split();
-                if (name.Length == 2)
+                url = parts[1].ToLower();
+
+                if (parts.Length >= 3)
                 {
-                    firstname = name[0];
-                    lastname = name[1];
+                    string[] name = parts[2].Split();
+                    if (name.Length == 2)
+                    {
+                        firstname = name[0];
+                        lastname = name[1];
+                    }
+
+                    if (parts.Length >= 4)
+                        secret = parts[3];
                 }
             }
-            if (parts.Length >= 4)
-                secret = parts[3];
+            return true;
+        }
 
+        public static bool ParseUniversalUserIdentifier(string value, out UUID uuid, out string url)
+        {
+            uuid = UUID.Zero;
+            url = string.Empty;
+
+            string[] parts = value.Split(';');
+            if (parts.Length < 1)
+                return false;
+
+            if (!UUID.TryParse(parts[0], out uuid))
+                return false;
+
+            if (parts.Length >= 2)
+                url = parts[1].ToLower();
             return true;
         }
 

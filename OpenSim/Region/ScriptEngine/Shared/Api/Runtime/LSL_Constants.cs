@@ -35,7 +35,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
     public partial class ScriptBaseClass
     {
         // SCRIPTS CONSTANTS
-        public static readonly LSLInteger OS_APIVERSION = 15;
+        public static readonly LSLInteger OS_APIVERSION = 18;
 
         public static readonly LSLInteger TRUE = 1;
         public static readonly LSLInteger FALSE = 0;
@@ -73,19 +73,21 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int CONTROL_ML_LBUTTON = 1073741824;
 
         //Permissions
-        public const int PERMISSION_DEBIT = 2;
-        public const int PERMISSION_TAKE_CONTROLS = 4;
-        public const int PERMISSION_REMAP_CONTROLS = 8;
-        public const int PERMISSION_TRIGGER_ANIMATION = 16;
-        public const int PERMISSION_ATTACH = 32;
-        public const int PERMISSION_RELEASE_OWNERSHIP = 64;
-        public const int PERMISSION_CHANGE_LINKS = 128;
-        public const int PERMISSION_CHANGE_JOINTS = 256;
-        public const int PERMISSION_CHANGE_PERMISSIONS = 512;
-        public const int PERMISSION_TRACK_CAMERA = 1024;
-        public const int PERMISSION_CONTROL_CAMERA = 2048;
-        public const int PERMISSION_TELEPORT = 4096;
+        public const int PERMISSION_DEBIT = 0x02;
+        public const int PERMISSION_TAKE_CONTROLS = 0x04;
+        public const int PERMISSION_REMAP_CONTROLS = 0x08;
+        public const int PERMISSION_TRIGGER_ANIMATION = 0x010;
+        public const int PERMISSION_ATTACH = 0x20;
+        public const int PERMISSION_RELEASE_OWNERSHIP = 0x40;
+        public const int PERMISSION_CHANGE_LINKS = 0x80;
+        public const int PERMISSION_CHANGE_JOINTS = 0x100;
+        public const int PERMISSION_CHANGE_PERMISSIONS = 0x200;
+        public const int PERMISSION_TRACK_CAMERA = 0x400;
+        public const int PERMISSION_CONTROL_CAMERA = 0x800;
+        public const int PERMISSION_TELEPORT = 0x1000;
+        public const int PERMISSION_SILENT_ESTATE_MANAGEMENT = 0x4000;
         public const int PERMISSION_OVERRIDE_ANIMATIONS = 0x8000;
+        public const int PERMISSION_RETURN_OBJECTS = 0x10000;
 
         public const int AGENT_FLYING = 0x1;
         //ApiDesc The agent has attachments
@@ -823,7 +825,11 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int STATS_PENDING_DOWNLOADS = 17;
         public const int STATS_PENDING_UPLOADS = 18;
         public const int STATS_ACTIVE_SCRIPTS = 19;
-        public const int STATS_SCRIPT_LPS = 20;
+
+        public const int STATS_SIM_SLEEP = 20;
+        public const int STATS_SCRIPT_EPS = 28;
+        public const int STATS_SCRIPT_TIME = 37;
+        public const int STATS_SCRIPT_LPS = 38;
 
         // Constants for osNpc* functions
         public const int OS_NPC_FLY = 0;
@@ -1003,5 +1009,17 @@ namespace OpenSim.Region.ScriptEngine.Shared.ScriptBase
         public const int SIT_INVALID_LINK = -5;
         public const int SIT_NO_ACCESS = -6;
         public const int SIT_INVALID_OBJECT = -7;
+
+        public const int NPCLOOKAT_NONE = 0;
+        public const int NPCLOOKAT_IDLE = 1;
+        public const int NPCLOOKAT_LISTEN = 2;
+        public const int NPCLOOKAT_FREELOOK = 3;
+        public const int NPCLOOKAT_RESPOND = 4;
+        public const int NPCLOOKAT_HOVER = 5;
+        public const int NPCLOOKAT_CONVERSATION = 6;
+        public const int NPCLOOKAT_SELECT = 7;
+        public const int NPCLOOKAT_FOCUS = 8;
+        public const int NPCLOOKAT_MOUSELOOK = 9;
+        public const int NPCLOOKAT_CLEAR = 10;
     }
 }

@@ -1072,7 +1072,7 @@ namespace OpenSim.Region.Framework.Scenes
             inTransit = true;
             
             PhysicsActor pa = RootPart.PhysActor;
-            if(pa == null  || RootPart.KeyframeMotion != null /*|| m_sittingAvatars.Count == 0*/)
+            if(/*pa == null  ||*/ RootPart.KeyframeMotion != null /*|| m_sittingAvatars.Count == 0*/)
             {
                 inTransit = false;
                 return -1;
@@ -2271,7 +2271,8 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void AddScriptLPS(int count)
         {
-            m_scene.SceneGraph.AddToScriptLPS(count);
+            //legacy
+            //m_scene.SceneGraph.AddToScriptLPS(count);
         }
 
         public void AddActiveScriptCount(int count)

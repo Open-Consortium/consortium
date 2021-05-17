@@ -51,7 +51,6 @@ namespace OpenSim.Region.CoreModules.Avatar.Gods
 
         /// <summary>Special UUID for actions that apply to all agents</summary>
         private static readonly UUID ALL_AGENTS = new UUID("44e87126-e794-4ded-05b3-7c42da3d5cdb");
-        private static readonly UUID UUID_GRID_GOD = new UUID("6571e388-6218-4574-87db-f9379718315e");
 
         protected Scene m_scene;
         protected IDialogModule m_dialogModule;
@@ -276,6 +275,15 @@ namespace OpenSim.Region.CoreModules.Avatar.Gods
         {
             if(sp.IsDeleted || sp.IsChildAgent)
                 return;
+            if (sp.IsNPC)
+            {
+                INPCModule npcmodule = sp.Scene.RequestModuleInterface<INPCModule>();
+                if (npcmodule != null)
+                {
+                    npcmodule.DeleteNPC(sp.UUID, sp.Scene);
+                    return;
+                }
+            }
             sp.ControllingClient.Kick(reason);
             sp.Scene.CloseAgent(sp.UUID, true);
         }
@@ -293,7 +301,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Gods
                 {
                     m_log.DebugFormat("[GODS]: Sending nonlocal kill for agent {0}", agentID);
                     transferModule.SendInstantMessage(new GridInstantMessage(
-                            m_scene, UUID_GRID_GOD, "GRID", agentID, (byte)250, false,
+                            m_scene, Constants.servicesGodAgentID, "GRID", agentID, (byte)250, false,
                             reason, UUID.Zero, true,
                             new Vector3(), new byte[] {0}, true),
                             delegate(bool success) {} );
@@ -311,6 +319,15 @@ namespace OpenSim.Region.CoreModules.Avatar.Gods
                 return;
             }
 
+            if (sp.IsNPC)
+            {
+                INPCModule npcmodule = sp.Scene.RequestModuleInterface<INPCModule>();
+                if (npcmodule != null)
+                {
+                    npcmodule.DeleteNPC(sp.UUID, sp.Scene);
+                    return;
+                }
+            }
             sp.ControllingClient.Kick(reason);
             sp.Scene.CloseAgent(sp.UUID, true);
         }
@@ -324,7 +341,7 @@ namespace OpenSim.Region.CoreModules.Avatar.Gods
                 UUID godID = new UUID(msg.fromAgentID);
                 uint kickMode = (uint)msg.binaryBucket[0];
 
-                if(godID == UUID_GRID_GOD)
+                if(godID == Constants.servicesGodAgentID)
                     GridKickUser(agentID, reason);
                 else
                     KickUser(godID, agentID, kickMode, reason);

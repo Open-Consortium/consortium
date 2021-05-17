@@ -241,7 +241,7 @@ namespace OpenSim.Server.Handlers.Login
 
             return FailedOSDResponse();
         }
-
+        /* not used anywhere we can see
         public void HandleWebSocketLoginEvents(string path, WebSocketHttpServerHandler sock)
         {
             sock.MaxPayloadSize = 16384; //16 kb payload
@@ -295,7 +295,7 @@ namespace OpenSim.Server.Handlers.Login
             sock.HandshakeAndUpgrade();
 
         }
-
+        */
 
         private XmlRpcResponse FailedXMLRPCResponse()
         {
