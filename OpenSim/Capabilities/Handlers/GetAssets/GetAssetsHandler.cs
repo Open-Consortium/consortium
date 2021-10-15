@@ -153,9 +153,18 @@ namespace OpenSim.Capabilities.Handlers
             done.Dispose();
             done = null;
 
+            if (asset == null)
+            {
+                // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
+                response.RawBuffer = Util.StringToBytesNoTerm("Not Found", 10);
+                response.StatusCode = (int)HttpStatusCode.NotFound;
+                return;
+            }
+
             if (asset.Type != (sbyte)type)
             {
                 m_log.Warn("[GETASSET]: asset with wrong type: " + assetStr + " " + asset.Type.ToString() + " != " + ((sbyte)type).ToString());
+                response.RawBuffer = Util.StringToBytesNoTerm("Not Found", 10);
                 response.StatusCode = (int)HttpStatusCode.NotFound;
                 return;
             }
@@ -163,6 +172,7 @@ namespace OpenSim.Capabilities.Handlers
             if (asset.Data.Length == 0)
             {
                 m_log.Warn("[GETASSET]: asset with empty data: " + assetStr +" type " + asset.Type.ToString());
+                response.RawBuffer = Util.StringToBytesNoTerm("Not Found", 10);
                 response.StatusCode = (int)HttpStatusCode.NotFound;
                 return;
             }

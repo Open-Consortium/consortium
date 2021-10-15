@@ -195,7 +195,7 @@ namespace OpenSim.Region.ScriptEngine.Yengine
                 XmlElement experienceN = doc.CreateElement("", "ExperienceKey", "");
                 experienceN.AppendChild(doc.CreateTextNode(m_Item.ExperienceID.ToString()));
                 scriptStateN.AppendChild(experienceN);
-                m_RunOnePhase = "GetExecutionState I";
+                //m_RunOnePhase = "GetExecutionState I";
                 CheckRunLockInvariants(true);
 
                 // Let script run again.
