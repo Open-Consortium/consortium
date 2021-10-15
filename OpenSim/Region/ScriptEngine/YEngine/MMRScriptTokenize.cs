@@ -876,6 +876,11 @@ namespace OpenSim.Region.ScriptEngine.Yengine
             for(j = i; j < source.Length; j++)
             {
                 c = source[j];
+                if((c == '0') && (mantissa == 0) && (basse == 10))
+                {
+                    basse = 8;
+                    continue;
+                }
                 if((c >= '0') && (c <= '9'))
                 {
                     m = mantissa * basse + (uint)(c - '0');
@@ -912,9 +917,14 @@ namespace OpenSim.Region.ScriptEngine.Yengine
                     mantissa = m;
                     continue;
                 }
-                if(((c == 'x') || (c == 'X')) && (mantissa == 0) && (basse == 10))
+                if(((c == 'x') || (c == 'X')) && (mantissa == 0) && (basse == 8))
                 {
                     basse = 16;
+                    continue;
+                }
+                if(((c == 'b') || (c == 'B')) && (mantissa == 0) && (basse == 8))
+                {
+                    basse = 2;
                     continue;
                 }
                 break;

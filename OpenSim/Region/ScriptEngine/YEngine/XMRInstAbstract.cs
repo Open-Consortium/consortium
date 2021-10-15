@@ -874,6 +874,10 @@ namespace OpenSim.Region.ScriptEngine.Yengine
             s = s.Trim();
             if(s.StartsWith("0x") || s.StartsWith("0X"))
                 return int.Parse(s.Substring(2), NumberStyles.HexNumber);
+            else if (s.StartsWith("0b") || s.StartsWith("0B"))
+                return Convert.ToInt32(s.Substring(2), 2);
+            else if (s.StartsWith("0"))
+                return Convert.ToInt32(s.Substring(1), 8);
 
             return int.Parse(s, CultureInfo.InvariantCulture);
         }
