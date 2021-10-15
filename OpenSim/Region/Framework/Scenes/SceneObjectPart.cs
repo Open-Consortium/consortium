@@ -232,7 +232,8 @@ namespace OpenSim.Region.Framework.Scenes
         [XmlIgnore]
         public int STATUS_ROTATE_Z;  // this should not be used
 
-        private Dictionary<int, string> m_CollisionFilter = new Dictionary<int, string>();
+        private int m_CollisionFilterType = 0; // -1 not in use, 0 accept false, 1 accept true
+        private string m_CollisionFilterString = string.Empty;
 
         /// <value>
         /// The UUID of the user inventory item from which this object was rezzed if this is a root part.
@@ -683,15 +684,6 @@ namespace OpenSim.Region.Framework.Scenes
                 m_isSelected = value;
                 if (ParentGroup != null)
                     ParentGroup.PartSelectChanged(value);
-            }
-        }
-
-        public Dictionary<int, string> CollisionFilter
-        {
-            get { return m_CollisionFilter; }
-            set
-            {
-                m_CollisionFilter = value;
             }
         }
 
@@ -2729,24 +2721,67 @@ namespace OpenSim.Region.Framework.Scenes
         {
         }
 
+        public void SetCollisionFilter(bool access, string name, string id)
+        {
+            if(string.IsNullOrEmpty(id))
+            {
+                if (string.IsNullOrEmpty(name))
+                {
+                    m_CollisionFilterString = string.Empty;
+                    m_CollisionFilterType = access ? 0 : -1;
+                }
+                else
+                {
+                    m_CollisionFilterString = name;
+                    m_CollisionFilterType = access ? 11 : 1;
+                }
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(name))
+                {
+                    m_CollisionFilterString = id;
+                    m_CollisionFilterType = access ? 12 : 2;
+                }
+                else
+                {
+                    m_CollisionFilterString = name + id;
+                    m_CollisionFilterType = access ? 13 : 3;
+                }
+            }
+        }
+
+        public void ClearCollisionFilter()
+        {
+            m_CollisionFilterType = 0;
+            m_CollisionFilterString = string.Empty;
+        }
+
         public bool CollisionFilteredOut(UUID objectID, string objectName)
         {
-            if(CollisionFilter.Count == 0)
-                return false;
-
-            if (CollisionFilter.ContainsValue(objectID.ToString()) ||
-                CollisionFilter.ContainsValue(objectID.ToString() + objectName) ||
-                CollisionFilter.ContainsValue(UUID.Zero.ToString() + objectName))
+            switch(m_CollisionFilterType)
             {
-                if (CollisionFilter.ContainsKey(1))
+                case 0: // not set
                     return false;
-                return true;
+                case -1: // disable all
+                    return true;
+
+                case 1: // false by name
+                    return m_CollisionFilterString.Equals(objectName, StringComparison.InvariantCultureIgnoreCase);
+                case 2: // false by id 
+                    return m_CollisionFilterString.Equals(objectID.ToString(), StringComparison.InvariantCultureIgnoreCase);
+                case 3: // false by name and id 
+                    return m_CollisionFilterString.Equals(objectName + objectID.ToString(), StringComparison.InvariantCultureIgnoreCase);
+                case 11: // true by name
+                    return !m_CollisionFilterString.Equals(objectName, StringComparison.InvariantCultureIgnoreCase);
+                case 12: // true by id
+                    return !m_CollisionFilterString.Equals(objectID.ToString(), StringComparison.InvariantCultureIgnoreCase);
+                case 13: // true by name and id
+                    return !m_CollisionFilterString.Equals(objectName + objectID.ToString(), StringComparison.InvariantCultureIgnoreCase);
+
+                default:
+                    return false;
             }
-
-            if (CollisionFilter.ContainsKey(1))
-                return true;
-
-            return false;
         }
 
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
@@ -3205,9 +3240,9 @@ namespace OpenSim.Region.Framework.Scenes
                     minsize = ParentGroup.Scene.m_minPhys;
                     maxsize = ParentGroup.Scene.m_maxPhys;
                     }
-                scale.X = Util.Clamp(scale.X, minsize, maxsize);
-                scale.Y = Util.Clamp(scale.Y, minsize, maxsize);
-                scale.Z = Util.Clamp(scale.Z, minsize, maxsize);
+                scale.X = Utils.Clamp(scale.X, minsize, maxsize);
+                scale.Y = Utils.Clamp(scale.Y, minsize, maxsize);
+                scale.Z = Utils.Clamp(scale.Z, minsize, maxsize);
             }
 //            m_log.DebugFormat("[SCENE OBJECT PART]: Resizing {0} {1} to {2}", Name, LocalId, scale);
 
@@ -3489,9 +3524,9 @@ namespace OpenSim.Region.Framework.Scenes
             }
         }
 
-        private const float ROTATION_TOLERANCE = 0.01f;
+        private const float ROTATION_TOLERANCE = 0.002f;
         private const float VELOCITY_TOLERANCE = 0.1f;
-        private const float ANGVELOCITY_TOLERANCE = 0.005f;
+        private const float ANGVELOCITY_TOLERANCE = 0.002f;
         private const float POSITION_TOLERANCE = 0.05f; // I don't like this, but I suppose it's necessary
         private const double TIME_MS_TOLERANCE = 250.0; //llSetPos has a 200ms delay. This should NOT be 3 seconds.
 
@@ -5801,6 +5836,43 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     Animations.Remove(animId);
                     if(AnimationsNames!=null)
+                        AnimationsNames.Remove(animId);
+                    ScheduleUpdate(PrimUpdateFlags.Animations);
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        public bool RemoveAnimation(string anim)
+        {
+            if (ParentGroup == null || ParentGroup.IsDeleted || ParentGroup.inTransit || string.IsNullOrWhiteSpace(anim))
+                return false;
+
+            lock (animsLock)
+            {
+                if (Animations == null || Animations.Count == 0)
+                    return false;
+
+                if (!UUID.TryParse(anim, out UUID animId))
+                {
+                    if (AnimationsNames == null || AnimationsNames.Count == 0)
+                        return false;
+
+                    foreach (KeyValuePair<UUID, string> kvp in AnimationsNames)
+                    {
+                        if (anim.Equals(kvp.Value, StringComparison.InvariantCultureIgnoreCase))
+                        {
+                            animId = kvp.Key;
+                            break;
+                        }
+                    }
+                }
+
+                if (Animations.ContainsKey(animId))
+                {
+                    Animations.Remove(animId);
+                    if (AnimationsNames != null)
                         AnimationsNames.Remove(animId);
                     ScheduleUpdate(PrimUpdateFlags.Animations);
                     return true;

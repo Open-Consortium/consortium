@@ -30,6 +30,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Net;
 using System.Reflection;
+using System.Threading;
 using log4net;
 using Nini.Config;
 using OpenMetaverse;
@@ -103,7 +104,7 @@ namespace OpenSim.Capabilities.Handlers
             string assetStr = string.Empty;
             foreach (KeyValuePair<string,string> kvp in queries)
             {
-                if (queryTypes.ContainsKey(kvp.Key))
+                if (queryTypes.TryGetValue(kvp.Key, out type))
                 {
                     asset_type_str = kvp.Key;
                     type = queryTypes[kvp.Key];
@@ -129,42 +130,28 @@ namespace OpenSim.Capabilities.Handlers
                 return;
             }
 
-            AssetBase asset = m_assetService.GetCached(assetID.ToString());
-            if (asset == null)
+            if (string.IsNullOrWhiteSpace(serviceURL))
             {
-                if (string.IsNullOrWhiteSpace(serviceURL))
+                if (m_externalURL != string.Empty)
                 {
-                    if (m_externalURL != string.Empty)
-                    {
-                        response.StatusCode = (int)HttpStatusCode.Redirect;
-                        response.AddHeader("Location", string.Format("{0}/?{1}={2}", m_externalURL, asset_type_str, assetID));
-                        response.KeepAlive = false;
-                        return;
-                    }
-
-                    asset = m_assetService.Get(assetID.ToString());
-
-                    if (asset == null)
-                    {
-                        // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
-                        response.RawBuffer = Util.StringToBytesNoTerm("Not found!", 20);
-                        response.StatusCode = (int)HttpStatusCode.NotFound;
-                        return;
-                    }
-                }
-
-                string newid = serviceURL + "/" + assetID.ToString();
-                asset = m_assetService.Get(newid);
-                if (asset == null)
-                {
-                    // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
-                    response.RawBuffer = Util.StringToBytesNoTerm("Not found!", 20);
-                    response.StatusCode = (int)HttpStatusCode.NotFound;
+                    response.StatusCode = (int)HttpStatusCode.Redirect;
+                    response.AddHeader("Location", string.Format("{0}/?{1}={2}", m_externalURL, asset_type_str, assetID));
+                    response.KeepAlive = false;
                     return;
                 }
-
-                // m_log.Warn("[GETASSET]: not found: " + query + " " + assetStr);
             }
+
+            ManualResetEventSlim done = new ManualResetEventSlim(false);
+            AssetBase asset = null;
+            m_assetService.Get(assetID.ToString(), serviceURL, false, (AssetBase a) =>
+                {
+                    asset = a;
+                    done.Set();
+                });
+
+            done.Wait();
+            done.Dispose();
+            done = null;
 
             if (asset.Type != (sbyte)type)
             {
@@ -221,19 +208,9 @@ namespace OpenSim.Capabilities.Handlers
             response.RawBuffer = asset.Data;
             response.RawBufferLen = len;
             if (type == AssetType.Mesh || type == AssetType.Texture)
-            {
-                if(len > 8196)
-                {
-                    //if(type == AssetType.Texture && ((asset.Flags & AssetFlags.AvatarBake)!= 0))
-                    //    responsedata["prio"] = 1;
-                    //else
-                    response.Priority = 2;
-                }
-                else
-                    response.Priority = 1;
-            }
+                response.Priority = 2;
             else
-                response.Priority = -1;
+                response.Priority = 1;
         }
     }
 }

@@ -97,7 +97,7 @@ namespace OpenSim.Region.CoreModules.World.Terrain
         private String m_InitialTerrain = "pinhead-island";
 
         // If true, send terrain patch updates to clients based on their view distance
-        private bool m_sendTerrainUpdatesByViewDistance = true;
+        private bool m_sendTerrainUpdatesByViewDistance = false;
 
         private IRegionConsole m_regionConsole = null;
         private IAssetService m_assetService = null;

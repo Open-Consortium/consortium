@@ -362,7 +362,7 @@ namespace OpenSim.Framework.Servers.HttpServer
 
         public void AddGenericStreamHandler(IRequestHandler handler)
         {
-            if(String.IsNullOrWhiteSpace(handler.Path))
+            if(string.IsNullOrWhiteSpace(handler.Path))
                 return;
 
             // m_log.DebugFormat("[BASE HTTP SERVER]: Adding handler key {0}", handlerKey);
@@ -434,14 +434,7 @@ namespace OpenSim.Framework.Servers.HttpServer
         {
             lock (m_rpcHandlers)
             {
-                if (m_rpcHandlers.ContainsKey(method))
-                {
-                    return m_rpcHandlers[method];
-                }
-                else
-                {
-                    return null;
-                }
+                return (m_rpcHandlers.TryGetValue(method, out XmlRpcMethod xm)) ? xm : null;
             }
         }
 
@@ -449,10 +442,8 @@ namespace OpenSim.Framework.Servers.HttpServer
         {
             lock (m_rpcHandlers)
             {
-                if(m_rpcHandlers.TryGetValue(method, out handler))
-                    return true;
+                return (m_rpcHandlers.TryGetValue(method, out handler));
             }
-            return false;
         }
 
         public List<string> GetXmlRpcHandlerKeys()
@@ -475,14 +466,7 @@ namespace OpenSim.Framework.Servers.HttpServer
         {
             lock (jsonRpcHandlers)
             {
-                if (jsonRpcHandlers.ContainsKey(method))
-                {
-                    return jsonRpcHandlers[method];
-                }
-                else
-                {
-                    return null;
-                }
+                return jsonRpcHandlers.TryGetValue(method, out JsonRPCMethod jm) ? jm : null;
             }
         }
 
@@ -1200,6 +1184,25 @@ namespace OpenSim.Framework.Servers.HttpServer
         public void HandleXmlRpcRequests(OSHttpRequest request, OSHttpResponse response)
         {
             Stream requestStream = request.InputStream;
+
+            response.StatusCode = (int)HttpStatusCode.NotFound;
+            response.KeepAlive = false;
+
+            try
+            {
+                if (!requestStream.CanRead)
+                    return;
+                if (requestStream.Length == 0)
+                {
+                    requestStream.Dispose();
+                    return;
+                }
+            }
+            catch
+            {
+                return;
+            }
+
             Stream innerStream = null;
             try
             {
@@ -1217,7 +1220,6 @@ namespace OpenSim.Framework.Servers.HttpServer
                     innerStream.Dispose();
 
                 response.StatusCode = (int)HttpStatusCode.BadRequest;
-                response.KeepAlive = false;
                 return;
             }
 
@@ -1245,19 +1247,11 @@ namespace OpenSim.Framework.Servers.HttpServer
             }
 
             if (xmlRprcRequest == null)
-            {
-                response.StatusCode = (int)HttpStatusCode.NotFound;
-                response.KeepAlive = false;
                 return;
-            }
 
             string methodName = xmlRprcRequest.MethodName;
             if (string.IsNullOrWhiteSpace(methodName))
-            {
-                response.StatusCode = (int)HttpStatusCode.NotFound;
-                response.KeepAlive = false;
                 return;
-            }
 
             XmlRpcMethod method;
             bool methodWasFound;
@@ -1590,6 +1584,7 @@ namespace OpenSim.Framework.Servers.HttpServer
             if (!TryGetLLSDHandler(request.RawUrl, out LLSDMethod llsdhandler))
             {
                 response.StatusCode = (int)HttpStatusCode.NotFound;
+                response.KeepAlive = false;
                 return null;
             }
 
@@ -1885,8 +1880,11 @@ namespace OpenSim.Framework.Servers.HttpServer
             {
 //                m_log.DebugFormat(
 //                    "[BASE HTTP SERVER]: Got query paremeter {0}={1}", queryname, request.QueryString[queryname]);
-                keysvals.Add(queryname, request.QueryString[queryname]);
-                requestVars.Add(queryname, keysvals[queryname]);
+                if(!string.IsNullOrEmpty(queryname))
+                {
+                    keysvals.Add(queryname, request.QueryString[queryname]);
+                    requestVars.Add(queryname, keysvals[queryname]);
+                }
             }
 
             foreach (string headername in rHeaders)
@@ -1954,7 +1952,7 @@ namespace OpenSim.Framework.Servers.HttpServer
                     }
                 }
 
-                if (String.IsNullOrEmpty(bestMatch))
+                if (string.IsNullOrEmpty(bestMatch))
                 {
                     httpHandler = null;
                     return false;
