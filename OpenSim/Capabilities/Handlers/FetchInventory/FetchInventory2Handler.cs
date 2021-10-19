@@ -99,7 +99,7 @@ namespace OpenSim.Capabilities.Handlers
                 foreach (InventoryItemBase item in items)
                 {
                     if (item != null)
-                        item.ToLLSDxml(lsl, 0xff);
+                        item.ToLLSDxml(lsl, 0xff, item.AssetType != (int)AssetType.Object);
                 }
                 LLSDxmlEncode2.AddEndArray(lsl);
             }            
@@ -152,7 +152,7 @@ namespace OpenSim.Capabilities.Handlers
                 foreach (InventoryItemBase item in items)
                 {
                     if (item != null)
-                        item.ToLLSDxml(lsl, 0xff);
+                        item.ToLLSDxml(lsl, 0xff, item.AssetType != (int)AssetType.Object);
                 }
                 LLSDxmlEncode2.AddEndArray(lsl);
             }

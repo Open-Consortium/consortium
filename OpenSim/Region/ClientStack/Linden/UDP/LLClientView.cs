@@ -2473,7 +2473,7 @@ namespace OpenSim.Region.ClientStack.LindenUDP
         {
             InventoryDescendentsPacket.ItemDataBlock newBlock = new InventoryDescendentsPacket.ItemDataBlock();
             newBlock.ItemID = item.ID;
-            newBlock.AssetID = item.AssetID;
+            newBlock.AssetID = item.AssetType == (int)AssetType.Object ? UUID.Zero : item.AssetID;
             newBlock.CreatorID = item.CreatorIdAsUuid;
             newBlock.BaseMask = item.BasePermissions;
             newBlock.Description = Util.StringToBytes256(item.Description);

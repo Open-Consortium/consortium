@@ -1435,7 +1435,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                     invString.AddSectionEnd();
 
-                    if (includeAssets)
+                    if (includeAssets && item.Type != (int)AssetType.Object)
                         invString.AddNameValueLine("asset_id", item.AssetID.ToString());
                     else
                         invString.AddNameValueLine("asset_id", UUID.Zero.ToString());

@@ -412,11 +412,16 @@ namespace OpenSim.Framework
             return MemberwiseClone();
         }
 
-        public void ToLLSDxml(osUTF8 lsl, uint flagsMask = 0xffffffff)
+        public void ToLLSDxml(osUTF8 lsl, bool give_asset_id = true)
+        {
+            ToLLSDxml(lsl, 0xffffffff, give_asset_id);
+        }
+
+        public void ToLLSDxml(osUTF8 lsl, uint flagsMask = 0xffffffff, bool give_asset_id = true)
         {
             LLSDxmlEncode2.AddMap(lsl);
                 LLSDxmlEncode2.AddElem_parent_id(Folder, lsl);
-                LLSDxmlEncode2.AddElem("asset_id", AssetID, lsl);
+                LLSDxmlEncode2.AddElem("asset_id", give_asset_id ? AssetID : UUID.Zero, lsl);
                 LLSDxmlEncode2.AddElem("item_id", ID, lsl);
 
                 LLSDxmlEncode2.AddMap("permissions",lsl);
