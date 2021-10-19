@@ -36,7 +36,8 @@ using OpenSim.Framework.Servers.HttpServer;
 using OpenMetaverse;
 using OpenMetaverse.StructuredData;
 using log4net;
-
+using Nini.Config;
+using System.Collections.Generic;
 
 namespace OpenSim.Server.Handlers.Simulation
 {
@@ -47,8 +48,29 @@ namespace OpenSim.Server.Handlers.Simulation
         private ISimulationService m_SimulationService;
         protected bool m_Proxy = false;
 
-        public ObjectSimpleHandler(ISimulationService service) : base("/object")
+        List<IPAddress> IPWhitelist = new List<IPAddress>();
+        bool m_UseWhitelist = false;
+
+        public ObjectSimpleHandler(ISimulationService service, IConfigSource config) : base("/object")
         {
+            IConfig conf = config.Configs["RegionCrossing"];
+            if(conf != null)
+            {
+                m_UseWhitelist = conf.GetBoolean("UseWhitelist", m_UseWhitelist);
+
+                string whitelist_str = conf.GetString("IPWhitelist", string.Empty);
+                string[] ips = whitelist_str.Split(';');
+
+                foreach(string str in ips)
+                {
+                    if (IPAddress.TryParse(str, out IPAddress ip))
+                    {
+                        IPWhitelist.Add(ip);
+                        m_log.InfoFormat("[OBJECT HANDLER] Added {0} to IP Whitelist.", ip);
+                    }
+                }
+            }
+
             m_SimulationService = service;
         }
 
@@ -76,6 +98,12 @@ namespace OpenSim.Server.Handlers.Simulation
             {
                 case "POST":
                 {
+                    if (!IPWhitelist.Contains(httpRequest.RemoteIPEndPoint.Address))
+                    {
+                        // m_log.InfoFormat("[OBJECT HANDLER] Blocked object entry from {0}", httpRequest.RemoteIPEndPoint.ToString());
+                        return;
+                    }
+
                     OSDMap args = Utils.DeserializeJSONOSMap(httpRequest);
                     if (args == null)
                     {
