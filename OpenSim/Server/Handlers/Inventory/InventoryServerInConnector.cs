@@ -98,7 +98,7 @@ namespace OpenSim.Server.Handlers.Inventory
                     "POST", "/UpdateFolder/", m_InventoryService.UpdateFolder, CheckAuthSession));
 
             m_httpServer.AddStreamHandler(
-                new RestDeserialiseSecureHandler<InventoryFolderBase, bool>(
+                new RestDeserialiseSecureHandler<InventoryFolderBase, MovementResult>(
                     "POST", "/MoveFolder/", m_InventoryService.MoveFolder, CheckAuthSession));
 
             m_httpServer.AddStreamHandler(
@@ -146,7 +146,7 @@ namespace OpenSim.Server.Handlers.Inventory
                     "POST", "/GetItems/", GetFolderItems, CheckAuthSession));
 
             m_httpServer.AddStreamHandler(
-                new RestDeserialiseSecureHandler<List<InventoryItemBase>, bool>(
+                new RestDeserialiseSecureHandler<List<InventoryItemBase>, MovementResult[]>(
                     "POST", "/MoveItems/", MoveItems, CheckAuthSession));
 
             m_httpServer.AddStreamHandler(new InventoryServerMoveItemsHandler(m_InventoryService));
@@ -281,7 +281,7 @@ namespace OpenSim.Server.Handlers.Inventory
             return m_InventoryService.DeleteItems(UUID.Zero, uuids);
         }
 
-        public bool MoveItems(List<InventoryItemBase> items)
+        public MovementResult[] MoveItems(List<InventoryItemBase> items)
         {
             // oops we lost the user info here. Bad bad handlers
             // let's peek at one item

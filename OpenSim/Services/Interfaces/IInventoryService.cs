@@ -38,6 +38,13 @@ namespace OpenSim.Services.Interfaces
     public delegate void InventoryReceiptCallback(
         ICollection<InventoryFolderImpl> folders, ICollection<InventoryItemBase> items);
 
+    public enum MovementResult
+    {
+        Failed = -1,
+        Success = 0,
+        NotExport = 1
+    };
+
     public interface IInventoryService
     {
         /// <summary>
@@ -112,7 +119,7 @@ namespace OpenSim.Services.Interfaces
         /// </summary>
         /// <param name="folder">A folder containing the details of the new location</param>
         /// <returns>true if the folder was successfully moved</returns>
-        bool MoveFolder(InventoryFolderBase folder);
+        MovementResult MoveFolder(InventoryFolderBase folder);
 
         /// <summary>
         /// Delete an item from the user's inventory
@@ -146,7 +153,7 @@ namespace OpenSim.Services.Interfaces
         /// <returns>true if the item was successfully updated</returns>
         bool UpdateItem(InventoryItemBase item);
 
-        bool MoveItems(UUID ownerID, List<InventoryItemBase> items);
+        MovementResult[] MoveItems(UUID ownerID, List<InventoryItemBase> items);
 
         /// <summary>
         /// Delete an item from the user's inventory
@@ -200,5 +207,7 @@ namespace OpenSim.Services.Interfaces
         /// <returns>The permissions or 0 if no such asset is found in
         /// the user's inventory</returns>
         int GetAssetPermissions(UUID userID, UUID assetID);
+
+        bool IsFolderDescendent(UUID userID, UUID folderID, UUID subFolderID);
     }
 }

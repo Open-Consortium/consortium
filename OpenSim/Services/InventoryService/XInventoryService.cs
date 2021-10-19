@@ -435,9 +435,36 @@ namespace OpenSim.Services.InventoryService
             return m_Database.StoreFolder(xFolder);
         }
 
-        public virtual bool MoveFolder(InventoryFolderBase folder)
+        bool RecursiveExportCheck(InventoryFolderBase folder)
         {
-            return m_Database.MoveFolder(folder.ID.ToString(), folder.ParentID.ToString());
+            var collection = GetFolderContent(folder.Owner, folder.ID);
+            foreach(var item in collection.Items)
+            {
+                if ((item.BasePermissions & (uint)Framework.PermissionMask.Export) == 0)
+                    return false;
+            }
+
+            foreach(var sub in collection.Folders)
+            {
+                if (!RecursiveExportCheck(sub))
+                    return false;
+            }
+
+            return true;
+        }
+
+        public virtual MovementResult MoveFolder(InventoryFolderBase folder)
+        {
+            var suitcase = GetFolderForType(folder.Owner, FolderType.Suitcase);
+            UUID suitcase_id = suitcase.ID;
+
+            if (IsFolderDescendent(folder.Owner, suitcase_id, folder.ParentID))
+            {
+                if (!RecursiveExportCheck(folder))
+                    return MovementResult.NotExport;
+            }
+
+            return m_Database.MoveFolder(folder.ID.ToString(), folder.ParentID.ToString()) ? MovementResult.Success : MovementResult.Failed;
         }
 
         // We don't check the principal's ID here
@@ -558,16 +585,33 @@ namespace OpenSim.Services.InventoryService
             return m_Database.StoreItem(ConvertFromOpenSim(item));
         }
 
-        public virtual bool MoveItems(UUID principalID, List<InventoryItemBase> items)
+        public virtual MovementResult[] MoveItems(UUID principalID, List<InventoryItemBase> items)
         {
             // Principal is b0rked. *sigh*
             //
-            foreach (InventoryItemBase i in items)
+            var results = new MovementResult[items.Count];
+            int i = 0;
+            var suitcase = GetFolderForType(items[0].Owner, FolderType.Suitcase);
+            UUID suitcase_id = suitcase.ID;
+
+            foreach (InventoryItemBase item in items)
             {
-                m_Database.MoveItem(i.ID.ToString(), i.Folder.ToString());
+                var real_item = GetItem(item.Owner, item.ID);
+
+                if(IsFolderDescendent(real_item.Owner, suitcase_id, item.Folder))
+                {
+                    if((real_item.CurrentPermissions & (uint)Framework.PermissionMask.Export) == 0)
+                    {
+                        results[i++] = MovementResult.NotExport;
+                        continue;
+                    }
+                }
+
+                results[i++] = MovementResult.Success;
+                m_Database.MoveItem(item.ID.ToString(), item.Folder.ToString());
             }
 
-            return true;
+            return results;
         }
 
         public virtual bool DeleteItems(UUID principalID, List<UUID> itemIDs)
@@ -811,5 +855,57 @@ namespace OpenSim.Services.InventoryService
             return false;
         }
 
+        // <edit>
+        private List<XInventoryFolder> GetFolderTreeRecursive(UUID root)
+        {
+            List<XInventoryFolder> tree = new List<XInventoryFolder>();
+            XInventoryFolder[] folders = m_Database.GetFolders(
+                    new string[] { "parentFolderID" },
+                    new string[] { root.ToString() });
+
+            if (folders == null || folders.Length == 0)
+            {
+                return tree; // empty tree
+            }
+            else
+            {
+                foreach (XInventoryFolder f in folders)
+                {
+                    tree.Add(f);
+                    tree.AddRange(GetFolderTreeRecursive(f.folderID));
+                }
+                return tree;
+            }
+        }
+        
+        
+        public bool IsFolderDescendent(UUID userID, UUID folderID, UUID subFolderID)
+        {
+            XInventoryFolder[] folders = m_Database.GetFolders(
+                    new string[] { "folderID" },
+                    new string[] { folderID.ToString() });
+
+            if (folders.Length == 0) return false;
+
+            var folder = folders[0];
+
+            if (folder == null)
+            {
+                m_log.WarnFormat("[XINENTORY SERVICE]: Folder {0} does not exist!", userID);
+                return false;
+            }
+
+            List<XInventoryFolder> tree = new List<XInventoryFolder>();
+            tree.Add(folder); // Warp! the tree is the real root folder plus the children of the suitcase folder
+            tree.AddRange(GetFolderTreeRecursive(folderID));
+
+            XInventoryFolder f = tree.Find(delegate (XInventoryFolder fl)
+            {
+                return (fl.folderID == subFolderID);
+            });
+
+            return (f != null);
+        }
+        // </edit>
     }
 }

@@ -672,9 +672,20 @@ namespace OpenSim.Region.Framework.Scenes
             InventoryFolderBase folder = InventoryService.GetFolder(remoteClient.AgentId, folderID);
             if (folder != null)
             {
+                UUID original_parent_id = folder.ParentID;
                 folder.ParentID = parentID;
-                if (!InventoryService.MoveFolder(folder))
+                MovementResult result = InventoryService.MoveFolder(folder);
+                if (result != MovementResult.Success)
+                {
+                    folder.ParentID = original_parent_id;
+                    if (result == MovementResult.NotExport)
+                    {
+                        remoteClient.SendAgentAlertMessage(string.Format("Cannot move folder `{0}` into your Suitcase as one or more of its contents do not have the Export permission.", folder.Name), false);
+                    }
+
+                    remoteClient.SendBulkUpdateInventory(folder);
                     m_log.WarnFormat("[AGENT INVENTORY]: could not move folder {0}", folderID);
+                }
                 else
                     m_log.DebugFormat("[AGENT INVENTORY]: folder {0} moved to parent {1}", folderID, parentID);
             }

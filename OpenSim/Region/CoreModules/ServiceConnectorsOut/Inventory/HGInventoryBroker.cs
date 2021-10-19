@@ -465,10 +465,10 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
             return connector.DeleteFolders(ownerID, folderIDs);
         }
 
-        public bool MoveFolder(InventoryFolderBase folder)
+        public MovementResult MoveFolder(InventoryFolderBase folder)
         {
             if (folder == null)
-                return false;
+                return MovementResult.Failed;
 
             //m_log.Debug("[HG INVENTORY CONNECTOR]: MoveFolder for " + folder.Owner);
 
@@ -537,12 +537,12 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
             return connector.UpdateItem(item);
         }
 
-        public bool MoveItems(UUID ownerID, List<InventoryItemBase> items)
+        public MovementResult[] MoveItems(UUID ownerID, List<InventoryItemBase> items)
         {
             if (items == null)
-                return false;
+                return null;
             if (items.Count == 0)
-                return true;
+                return null;
 
             //m_log.Debug("[HG INVENTORY CONNECTOR]: MoveItems for " + ownerID);
 
@@ -668,6 +668,19 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
                     m_connectors.AddOrUpdate(url, connector, CONNECTORS_CACHE_EXPIRE);
             }
             return connector;
+        }
+
+        public bool IsFolderDescendent(UUID userID, UUID folderID, UUID subFolderID)
+        {
+            string invURL = GetInventoryServiceURL(userID);
+
+            if (invURL == null) // not there, forward to local inventory connector to resolve
+                lock (m_Lock)
+                    return m_LocalGridInventoryService.IsFolderDescendent(userID, folderID, subFolderID);
+
+            IInventoryService connector = GetConnector(invURL);
+
+            return connector.IsFolderDescendent(userID, folderID, subFolderID);
         }
     }
 }

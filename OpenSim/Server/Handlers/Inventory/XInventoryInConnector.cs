@@ -157,6 +157,8 @@ namespace OpenSim.Server.Handlers.Inventory
                         return HandleGetActiveGestures(request);
                     case "GETASSETPERMISSIONS":
                         return HandleGetAssetPermissions(request);
+                    case "ISSUBFOLDER":
+                        return HandleIsSubFolder(request);
                 }
                 m_log.DebugFormat("[XINVENTORY HANDLER]: unknown method request: {0}", method);
             }
@@ -166,6 +168,24 @@ namespace OpenSim.Server.Handlers.Inventory
             }
 
             return FailureResult();
+        }
+
+        private byte[] HandleIsSubFolder(Dictionary<string, object> request)
+        {
+            if (!request.ContainsKey("PRINCIPAL"))
+                return FailureResult();
+
+            UUID folderID = UUID.Zero;
+            UUID subFolderID = UUID.Zero;
+            UUID principalID = UUID.Zero;
+            UUID.TryParse(request["ID"].ToString(), out folderID);
+            UUID.TryParse(request["SUBID"].ToString(), out subFolderID);
+            UUID.TryParse(request["PRINCIPAL"].ToString(), out principalID);
+
+            if (m_InventoryService.IsFolderDescendent(principalID, folderID, subFolderID))
+                return SuccessResult();
+            else
+                return FailureResult();
         }
 
         private byte[] FailureResult()
@@ -444,11 +464,17 @@ namespace OpenSim.Server.Handlers.Inventory
             UUID.TryParse(request["PRINCIPAL"].ToString(), out principal);
 
             InventoryFolderBase folder = new InventoryFolderBase(folderID, "", principal, parentID);
-            if (m_InventoryService.MoveFolder(folder))
-                return SuccessResult();
-            else
-                return FailureResult();
 
+            MovementResult result = m_InventoryService.MoveFolder(folder);
+
+            Dictionary<string, object> ret = new Dictionary<string, object>();
+            ret["STATUS"] = (int)m_InventoryService.MoveFolder(folder);
+            ret["RESULT"] = result == MovementResult.Success ? "TRUE" : "FALSE"; // legacy
+
+            string xmlString = ServerUtils.BuildXmlResponse(ret);
+
+            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
+            return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
         byte[] HandleDeleteFolders(Dictionary<string,object> request)
@@ -535,10 +561,23 @@ namespace OpenSim.Server.Handlers.Inventory
                 return FailureResult();
             }
 
-            if (m_InventoryService.MoveItems(principal, items))
-                return SuccessResult();
-            else
-                return FailureResult();
+            MovementResult[] results = m_InventoryService.MoveItems(principal, items);
+
+            Dictionary<string, object> result = new Dictionary<string, object>();
+
+            Dictionary<string, object> dresults = new Dictionary<string, object>();
+            for(int i = 0; i < results.Length; i++)
+            {
+                dresults["r_" + i.ToString()] = (int)results[i];
+            }
+
+            result["Statuses"] = dresults;
+            result["STATUS"] = "TRUE"; // legacy
+
+            string xmlString = ServerUtils.BuildXmlResponse(result);
+
+            //m_log.DebugFormat("[XXX]: resp string: {0}", xmlString);
+            return Util.UTF8NoBomEncoding.GetBytes(xmlString);
         }
 
         byte[] HandleDeleteItems(Dictionary<string,object> request)

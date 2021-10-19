@@ -313,18 +313,18 @@ namespace OpenSim.Services.HypergridService
             return base.UpdateFolder(folder);
         }
 
-        public override bool MoveFolder(InventoryFolderBase folder)
+        public override MovementResult MoveFolder(InventoryFolderBase folder)
         {
             if (!IsWithinSuitcaseTree(folder.Owner, folder.ID))
             {
                 m_log.DebugFormat("[HG SUITCASE INVENTORY SERVICE]: MoveFolder: folder {0} (user {1}) is not within Suitcase tree", folder.ID, folder.Owner);
-                return false;
+                return MovementResult.Failed;
             }
 
             if (!IsWithinSuitcaseTree(folder.Owner, folder.ParentID))
             {
                 m_log.DebugFormat("[HG SUITCASE INVENTORY SERVICE]: MoveFolder: folder {0} (user {1}) is not within Suitcase tree", folder.ParentID, folder.Owner);
-                return false;
+                return MovementResult.Failed;
             }
 
             return base.MoveFolder(folder);
@@ -368,7 +368,7 @@ namespace OpenSim.Services.HypergridService
             return base.UpdateItem(item);
         }
 
-        public override bool MoveItems(UUID principalID, List<InventoryItemBase> items)
+        public override MovementResult[] MoveItems(UUID principalID, List<InventoryItemBase> items)
         {
             // Principal is b0rked. *sigh*
 
@@ -378,7 +378,7 @@ namespace OpenSim.Services.HypergridService
                 if (!IsWithinSuitcaseTree(item.Owner, item.Folder))
                 {
                     m_log.DebugFormat("[HG SUITCASE INVENTORY SERVICE]: MoveItems: folder {0} (user {1}) is not within Suitcase tree", item.Folder, item.Owner);
-                    return false;
+                    return null;
                 }
             }
 
@@ -389,7 +389,7 @@ namespace OpenSim.Services.HypergridService
                 if (!IsWithinSuitcaseTree(originalItem.Owner, originalItem.Folder))
                 {
                     m_log.DebugFormat("[HG SUITCASE INVENTORY SERVICE]: MoveItems: folder {0} (user {1}) is not within Suitcase tree", item.Folder, item.Owner);
-                    return false;
+                    return null;
                 }
             }
 

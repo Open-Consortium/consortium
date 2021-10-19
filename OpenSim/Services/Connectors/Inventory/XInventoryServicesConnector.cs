@@ -391,7 +391,7 @@ namespace OpenSim.Services.Connectors
             return CheckReturn(ret);
         }
 
-        public bool MoveFolder(InventoryFolderBase folder)
+        public MovementResult MoveFolder(InventoryFolderBase folder)
         {
             Dictionary<string,object> ret = MakeRequest(
                     new Dictionary<string,object> {
@@ -401,7 +401,24 @@ namespace OpenSim.Services.Connectors
                         { "PRINCIPAL", folder.Owner.ToString() }
                     });
 
-            return CheckReturn(ret);
+            MovementResult result = MovementResult.Failed;
+
+            if (ret.TryGetValue("STATUS", out object stat))
+            {
+                if (int.TryParse((string)stat, out int status))
+                {
+                    result = (MovementResult)status;
+                }
+            }
+            else if (ret.TryGetValue("RESULT", out object res)) // legacy
+            {
+                if ((string)res == "TRUE")
+                {
+                    result = MovementResult.Success;
+                }
+            }
+
+            return result;
         }
 
         public bool DeleteFolders(UUID principalID, List<UUID> folderIDs)
@@ -508,7 +525,7 @@ namespace OpenSim.Services.Connectors
             return result;
         }
 
-        public bool MoveItems(UUID principalID, List<InventoryItemBase> items)
+        public MovementResult[] MoveItems(UUID principalID, List<InventoryItemBase> items)
         {
             List<string> idlist = new List<string>();
             List<string> destlist = new List<string>();
@@ -528,7 +545,22 @@ namespace OpenSim.Services.Connectors
                         { "DESTLIST", destlist }
                     });
 
-            return CheckReturn(ret);
+            var results = new MovementResult[items.Count];
+            if (ret.Count > 0)
+            {
+                var obj_res = new List<object>(((Dictionary<string, object>)ret["Statuses"]).Values);
+                for(int i = 0; i < obj_res.Count; i++)
+                {
+                    results[i] = (MovementResult)int.Parse((string)obj_res[i]);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < items.Count; i++)
+                    results[i] = MovementResult.Failed;
+            }
+
+            return results;
         }
 
         public bool DeleteItems(UUID principalID, List<UUID> itemIDs)
@@ -798,6 +830,19 @@ namespace OpenSim.Services.Connectors
             }
 
             return item;
+        }
+
+        public bool IsFolderDescendent(UUID userID, UUID folderID, UUID subFolderID)
+        {
+            Dictionary<string, object> ret = MakeRequest(
+                    new Dictionary<string, object> {
+                        { "METHOD", "ISSUBFOLDER"},
+                        { "PRINCIPAL", userID.ToString() },
+                        { "ID", folderID.ToString() },
+                        { "SUBID", subFolderID.ToString() }
+                    });
+
+            return CheckReturn(ret);
         }
     }
 }

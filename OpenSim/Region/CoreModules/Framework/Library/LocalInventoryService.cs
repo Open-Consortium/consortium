@@ -194,7 +194,7 @@ namespace OpenSim.Region.CoreModules.Framework.Library
         /// </summary>
         /// <param name="folder">A folder containing the details of the new location</param>
         /// <returns>true if the folder was successfully moved</returns>
-        public bool MoveFolder(InventoryFolderBase folder) { return false; }
+        public MovementResult MoveFolder(InventoryFolderBase folder) { return MovementResult.Failed; }
 
         /// <summary>
         /// Delete an item from the user's inventory
@@ -219,7 +219,7 @@ namespace OpenSim.Region.CoreModules.Framework.Library
         /// <returns>true if the item was successfully updated</returns>
         public bool UpdateItem(InventoryItemBase item) { return false; }
 
-        public bool MoveItems(UUID ownerID, List<InventoryItemBase> items) { return false; }
+        public MovementResult[] MoveItems(UUID ownerID, List<InventoryItemBase> items) { return null; }
 
         /// <summary>
         /// Delete an item from the user's inventory
@@ -266,5 +266,7 @@ namespace OpenSim.Region.CoreModules.Framework.Library
         /// <returns>The permissions or 0 if no such asset is found in
         /// the user's inventory</returns>
         public int GetAssetPermissions(UUID userID, UUID assetID) { return 0; }
+
+        public bool IsFolderDescendent(UUID userID, UUID folderID, UUID subFolderID) { return false; }
     }
 }

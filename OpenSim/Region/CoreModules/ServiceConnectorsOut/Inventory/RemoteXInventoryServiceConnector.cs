@@ -230,10 +230,10 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
             return m_RemoteConnector.UpdateFolder(folder);
         }
 
-        public  bool MoveFolder(InventoryFolderBase folder)
+        public MovementResult MoveFolder(InventoryFolderBase folder)
         {
             if (folder == null)
-                return false;
+                return MovementResult.Failed;
 
             return m_RemoteConnector.MoveFolder(folder);
         }
@@ -273,10 +273,10 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
             return m_RemoteConnector.UpdateItem(item);
         }
 
-        public  bool MoveItems(UUID ownerID, List<InventoryItemBase> items)
+        public MovementResult[] MoveItems(UUID ownerID, List<InventoryItemBase> items)
         {
             if (items == null)
-                return false;
+                return null;
 
             return m_RemoteConnector.MoveItems(ownerID, items);
         }
@@ -329,6 +329,11 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
         public  int GetAssetPermissions(UUID userID, UUID assetID)
         {
             return m_RemoteConnector.GetAssetPermissions(userID, assetID);
+        }
+
+        public bool IsFolderDescendent(UUID userID, UUID folderID, UUID subFolderID)
+        {
+            return m_RemoteConnector.IsFolderDescendent(userID, folderID, subFolderID);
         }
 
         #endregion

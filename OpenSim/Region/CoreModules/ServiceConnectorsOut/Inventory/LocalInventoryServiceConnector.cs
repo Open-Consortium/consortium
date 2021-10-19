@@ -238,7 +238,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
         /// </summary>
         /// <param name="folder">A folder containing the details of the new location</param>
         /// <returns>true if the folder was successfully moved</returns>
-        public bool MoveFolder(InventoryFolderBase folder)
+        public MovementResult MoveFolder(InventoryFolderBase folder)
         {
             return m_InventoryService.MoveFolder(folder);
         }
@@ -277,7 +277,7 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
             return m_InventoryService.UpdateItem(item);
         }
 
-        public bool MoveItems(UUID ownerID, List<InventoryItemBase> items)
+        public MovementResult[] MoveItems(UUID ownerID, List<InventoryItemBase> items)
         {
             return m_InventoryService.MoveItems(ownerID, items);
         }
@@ -335,6 +335,11 @@ namespace OpenSim.Region.CoreModules.ServiceConnectorsOut.Inventory
         public int GetAssetPermissions(UUID userID, UUID assetID)
         {
             return m_InventoryService.GetAssetPermissions(userID, assetID);
+        }
+
+        public bool IsFolderDescendent(UUID userID, UUID folderID, UUID subFolderID)
+        {
+            return m_InventoryService.IsFolderDescendent(userID, folderID, subFolderID);
         }
         #endregion IInventoryService
     }

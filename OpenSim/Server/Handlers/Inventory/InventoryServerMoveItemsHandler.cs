@@ -62,7 +62,7 @@ namespace OpenSim.Server.Handlers.Inventory
             XmlSerializer xs = new XmlSerializer(typeof (List<InventoryItemBase>));
             List<InventoryItemBase> items = (List<InventoryItemBase>)xs.Deserialize(request);
 
-            bool result = false;
+            MovementResult[] result;
             string[] p = SplitParams(path);
 
             if (p.Length > 0)
@@ -72,9 +72,14 @@ namespace OpenSim.Server.Handlers.Inventory
                 result = m_InventoryService.MoveItems(ownerID, items);
             }
             else
+            {
                 m_log.WarnFormat("[MOVEITEMS HANDLER]: ownerID not provided in request. Unable to serve.");
+                result = new MovementResult[items.Count];
+                for (int i = 0; i < items.Count; i++)
+                    result[i] = MovementResult.Failed;
+            }
 
-            xs = new XmlSerializer(typeof(bool));
+            xs = new XmlSerializer(typeof(MovementResult[]));
             return ServerUtils.SerializeResult(xs, result);
         }
     }

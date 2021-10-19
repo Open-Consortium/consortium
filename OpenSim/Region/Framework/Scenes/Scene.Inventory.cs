@@ -1186,12 +1186,21 @@ namespace OpenSim.Region.Framework.Scenes
             m_log.DebugFormat(
                 "[AGENT INVENTORY]: Moving {0} items for user {1}", items.Count, agentId);
 
-            if (!InventoryService.MoveItems(agentId, items))
-                m_log.Warn("[AGENT INVENTORY]: Failed to move items for user " + agentId);
-
-            foreach (InventoryItemBase it in items)
+            MovementResult[] results = InventoryService.MoveItems(agentId, items);
+            for (int i = 0; i < items.Count; i++)
             {
+                InventoryItemBase it = items[i];
                 InventoryItemBase n = InventoryService.GetItem(agentId, it.ID);
+
+                MovementResult res = results?[i] ?? MovementResult.Failed;
+
+                if (res == MovementResult.NotExport)
+                {
+                    remoteClient.SendAgentAlertMessage(string.Format("Unable to move `{0}` into your Suitcase as it does not have the Export permission.", n.Name), false);
+                }
+                else if(res == MovementResult.Failed)
+                    m_log.Warn("[AGENT INVENTORY]: Failed to move items for user " + agentId);
+
                 if(n != null)
                     remoteClient.SendBulkUpdateInventory(n);
             }
