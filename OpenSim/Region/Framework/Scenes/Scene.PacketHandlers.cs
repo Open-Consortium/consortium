@@ -499,7 +499,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             ForEachScenePresence(sp =>
                 {
-                    if (sp.ControllingClient.AgentId != remoteClient.AgentId)
+                    //if (sp.ControllingClient.AgentId != remoteClient.AgentId)
                     {
                         if (!discardableEffects ||
                            (discardableEffects && ShouldSendDiscardableEffect(remoteClient, sp)))
