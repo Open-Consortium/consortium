@@ -98,7 +98,7 @@ namespace OpenSim.Server.Handlers.Simulation
             {
                 case "POST":
                 {
-                    if (!IPWhitelist.Contains(httpRequest.RemoteIPEndPoint.Address))
+                    if (m_UseWhitelist && !IPWhitelist.Contains(httpRequest.RemoteIPEndPoint.Address))
                     {
                         // m_log.InfoFormat("[OBJECT HANDLER] Blocked object entry from {0}", httpRequest.RemoteIPEndPoint.ToString());
                         return;
