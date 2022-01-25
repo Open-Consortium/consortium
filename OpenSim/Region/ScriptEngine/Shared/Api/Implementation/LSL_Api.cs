@@ -5215,7 +5215,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                                 if (destination == String.Empty)
                                     destination = World.RegionInfo.RegionName;
 
-                                DoLLTeleport(presence, destination, targetPos, targetLookAt);
+                                DoLLTeleport(presence, destination, targetPos, targetLookAt, is_experience);
                             }
                             else Error("llTeleportAgent", "Teleport LSL functions can only teleport the owner of the object.");
                         }
@@ -5254,7 +5254,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                             SendExperienceEvent(ExperienceEvent.Teleport);
                         }
                         ulong regionHandle = Util.RegionWorldLocToHandle((uint)global_coords.x, (uint)global_coords.y);
-                        World.RequestTeleportLocation(presence.ControllingClient, regionHandle, targetPos, targetLookAt, (uint)TeleportFlags.ViaLocation);
+                        World.RequestTeleportLocation(presence.ControllingClient, regionHandle, targetPos, targetLookAt, is_experience ? (uint)TeleportFlags.ViaLure : (uint)TeleportFlags.ViaLocation);
                     }
                 }
             }
@@ -5262,7 +5262,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             Error("llTeleportAgent", "Script trying to teleport other avatars!");
         }
 
-        private void DoLLTeleport(ScenePresence sp, string destination, Vector3 targetPos, Vector3 targetLookAt)
+        private void DoLLTeleport(ScenePresence sp, string destination, Vector3 targetPos, Vector3 targetLookAt, bool is_experience = false)
         {
             UUID assetID = ScriptUtils.GetAssetIdFromKeyOrItemName(m_host, destination);
 
@@ -5271,9 +5271,9 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
             if (assetID == UUID.Zero)
             {
                 if(string.IsNullOrEmpty(destination))
-                    World.RequestTeleportLocation(sp.ControllingClient, World.RegionInfo.RegionName, targetPos, targetLookAt, (uint)TeleportFlags.ViaLocation);
+                    World.RequestTeleportLocation(sp.ControllingClient, World.RegionInfo.RegionName, targetPos, targetLookAt, is_experience ? (uint)TeleportFlags.ViaLure : (uint)TeleportFlags.ViaLocation);
                 else
-                    World.RequestTeleportLocation(sp.ControllingClient, destination, targetPos, targetLookAt, (uint)TeleportFlags.ViaLocation);
+                    World.RequestTeleportLocation(sp.ControllingClient, destination, targetPos, targetLookAt, is_experience ? (uint)TeleportFlags.ViaLure : (uint)TeleportFlags.ViaLocation);
                 return;
             }
 
