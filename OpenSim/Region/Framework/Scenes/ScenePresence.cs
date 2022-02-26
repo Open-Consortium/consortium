@@ -3942,8 +3942,12 @@ namespace OpenSim.Region.Framework.Scenes
 
             bool notmvtrgt = !m_movingToTarget || m_moveToSpeed <= 0;
             // odd rescalings
-            if(notmvtrgt)
-                direc *= 4.096f * SpeedModifier * thisAddSpeedModifier;
+            if (notmvtrgt)
+            {
+                direc *= 4.096f * thisAddSpeedModifier;
+                direc.X *= SpeedModifier;
+                direc.Y *= SpeedModifier;
+            }
             else
                 direc *= m_moveToSpeed;
 
