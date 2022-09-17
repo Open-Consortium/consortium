@@ -223,7 +223,7 @@ namespace OpenSim.Capabilities.Handlers
                         LLSDxmlEncode2.AddArray("items", lastresponse);
                         foreach (InventoryItemBase invItem in thiscoll.Items)
                         {
-                            invItem.ToLLSDxml(lastresponse);
+                            invItem.ToLLSDxml(lastresponse, true);
                         }
 
                         LLSDxmlEncode2.AddEndArray(lastresponse);

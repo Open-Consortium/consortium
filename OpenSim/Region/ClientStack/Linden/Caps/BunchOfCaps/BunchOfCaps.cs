@@ -2351,10 +2351,9 @@ namespace OpenSim.Region.ClientStack.Linden
             int ct = 0;
             if(names.Count == 0)
                 LLSDxmlEncode2.AddEmptyArray("agents", lsl);
-            }
             else
             {
-                List<UserData> names = m_UserManager.GetKnownUsers(ids, m_scopeID);
+                //List<UserData> names = m_UserManager.GetKnownUsers(ids, m_scopeID);
                 lsl = LLSDxmlEncode2.Start(names.Count * 256 + 256);
 
                 foreach (KeyValuePair<UUID, NameInfo> kvp in names)

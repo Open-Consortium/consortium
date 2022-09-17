@@ -3454,7 +3454,7 @@ namespace OpenSim.Region.Framework.Scenes
                 }
 
                 m_requestedSitTargetID = part.LocalId;
-                m_requestedSitTargetUUID = part.UUID;
+                //m_requestedSitTargetUUID = part.UUID;
             }
             else
             {

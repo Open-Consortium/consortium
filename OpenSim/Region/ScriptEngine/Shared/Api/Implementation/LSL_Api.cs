@@ -3810,7 +3810,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
         {
             bool is_experience = CheckExperiencePermissions();
 
-            if (!m_item.PermsGranter.IsZero()))
+            if (!m_item.PermsGranter.IsZero())
             {
                 ScenePresence presence = World.GetScenePresence(m_item.PermsGranter);
 
@@ -3835,7 +3835,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             bool is_experience = CheckExperiencePermissions();
 
-            if (!m_item.PermsGranter.IsZero()))
+            if (!m_item.PermsGranter.IsZero())
             {
                 ScenePresence presence = World.GetScenePresence(m_item.PermsGranter);
 
@@ -4249,7 +4249,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             bool is_experience = CheckExperiencePermissions();
 
-            if (m_item.PermsGranter.IsZero()))
+            if (m_item.PermsGranter.IsZero())
                 return;
 
             if ((m_item.PermsMask & ScriptBaseClass.PERMISSION_TRIGGER_ANIMATION) != 0)
@@ -4278,7 +4278,7 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
 
             bool is_experience = CheckExperiencePermissions();
 
-            if (m_item.PermsGranter.IsZero()))
+            if (m_item.PermsGranter.IsZero())
                 return;
 
             if ((m_item.PermsMask & ScriptBaseClass.PERMISSION_TRIGGER_ANIMATION) != 0)
@@ -17735,11 +17735,6 @@ namespace OpenSim.Region.ScriptEngine.Shared.Api
                 llShout(ScriptBaseClass.DEBUG_CHANNEL, "No permission to override animations");
                 return;
             }
-
-            ScenePresence presence = World.GetScenePresence(m_item.PermsGranter);
-
-            if (presence == null)
-                return;
 
             UUID animID;
 
