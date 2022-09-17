@@ -73,10 +73,10 @@ namespace OpenSim.Services.HypergridService
 
         private static OSHHTPHost m_gatekeeperHost;
         private static string m_gatekeeperURL;
-        private HashSet<OSHHTPHost> m_gateKeeperAlias;
+        private static HashSet<OSHHTPHost> m_gateKeeperAlias;
 
         private static GridRegion m_DefaultGatewayRegion;
-        private bool m_allowDuplicatePresences = false;
+        private static bool m_allowDuplicatePresences = false;
         private static string m_messageKey;
 
         public GatekeeperService(IConfigSource config, ISimulationService simService)
@@ -99,7 +99,7 @@ namespace OpenSim.Services.HypergridService
 				string accessControlService = serverConfig.GetString("AccessControlService", string.Empty);
 
                 // These are mandatory, the others aren't
-                if (gridService == string.Empty || presenceService == string.Empty)
+                if (gridService.Length == 0 || presenceService.Length == 0)
                     throw new Exception("Incomplete specifications, Gatekeeper Service cannot function.");
 
                 string scope = serverConfig.GetString("ScopeID", UUID.Zero.ToString());
@@ -210,8 +210,8 @@ namespace OpenSim.Services.HypergridService
             reason = string.Empty;
             GridRegion region = null;
 
-            //m_log.DebugFormat("[GATEKEEPER SERVICE]: Request to link to {0}", (regionName == string.Empty)? "default region" : regionName);
-            if (!m_AllowTeleportsToAnyRegion || regionName == string.Empty)
+            //m_log.DebugFormat("[GATEKEEPER SERVICE]: Request to link to {0}", (regionName.Length == 0)? "default region" : regionName);
+            if (!m_AllowTeleportsToAnyRegion || regionName.Length == 0)
             {
                 List<GridRegion> defs = m_GridService.GetDefaultHypergridRegions(m_ScopeID);
                 if (defs != null && defs.Count > 0)

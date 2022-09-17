@@ -315,7 +315,7 @@ namespace OpenSim.Framework
 
         public void AddEstateUser(UUID avatarID)
         {
-            if (avatarID == UUID.Zero)
+            if (avatarID.IsZero())
                 return;
             if (!l_EstateAccess.Contains(avatarID) &&
                     (l_EstateAccess.Count < (int)Constants.EstateAccessLimits.AllowedAccess))
@@ -335,7 +335,7 @@ namespace OpenSim.Framework
 
         public void AddEstateGroup(UUID avatarID)
         {
-            if (avatarID == UUID.Zero)
+            if (avatarID.IsZero())
                 return;
             if (!l_EstateGroups.Contains(avatarID) &&
                     (l_EstateGroups.Count < (int)Constants.EstateAccessLimits.AllowedGroups))
@@ -355,7 +355,7 @@ namespace OpenSim.Framework
 
         public void AddEstateManager(UUID avatarID)
         {
-            if (avatarID == UUID.Zero)
+            if (avatarID.IsZero())
                 return;
             if (!l_EstateManagers.Contains(avatarID) &&
                 (l_EstateManagers.Count < (int)Constants.EstateAccessLimits.EstateManagers))

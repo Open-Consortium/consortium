@@ -37,7 +37,7 @@ namespace OpenSim.Framework
     /// </summary>
     public class TaskInventoryItem : ICloneable
     {
-//        private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+        // private static readonly ILog m_log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         /// <summary>
         /// XXX This should really be factored out into some constants class.
@@ -134,7 +134,7 @@ namespace OpenSim.Framework
             }
             set
             {
-                if ((value == null) || (value != null && value == string.Empty))
+                if (string.IsNullOrEmpty(value))
                 {
                     _creatorData = string.Empty;
                     return;

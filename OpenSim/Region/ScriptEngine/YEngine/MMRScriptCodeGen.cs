@@ -66,7 +66,7 @@ namespace OpenSim.Region.ScriptEngine.Yengine
     {
         public static readonly string OBJECT_CODE_MAGIC = "YObjectCode";
         // reserve positive version values for original xmr
-        public static int COMPILED_VERSION_VALUE = -7;  // decremented when compiler or object file changes
+        public static int COMPILED_VERSION_VALUE = -9;  // decremented when compiler or object file changes
 
         public static readonly int CALL_FRAME_MEMUSE = 64;
         public static readonly int STRING_LEN_TO_MEMUSE = 2;
@@ -2485,17 +2485,18 @@ namespace OpenSim.Region.ScriptEngine.Yengine
 
             int index = 0;  // 'default' state
 
-             // Set new state value by throwing an exception.
-             // These exceptions aren't catchable by script-level try { } catch { }.
-            if((stateStmt.state != null) && !stateIndices.TryGetValue(stateStmt.state.val, out index))
+            // Set new state value by throwing an exception.
+            // These exceptions aren't catchable by script-level try { } catch { }.
+            if ((stateStmt.state != null) && !stateIndices.TryGetValue(stateStmt.state.val, out index))
             {
-                // The moron XEngine compiles scripts that reference undefined states.
-                // So rather than produce a compile-time error, we'll throw an exception at runtime.
-                // ErrorMsg (stateStmt, "undefined state " + stateStmt.state.val);
+                mightGetHere = false;
+                // do compile time error
+                ErrorMsg (stateStmt, "undefined state " + stateStmt.state.val);
+                throw new Exception("undefined state " + stateStmt.state.val);
 
-                // throw new UndefinedStateException (stateStmt.state.val);
-                ilGen.Emit(stateStmt, OpCodes.Ldstr, stateStmt.state.val);
-                ilGen.Emit(stateStmt, OpCodes.Newobj, scriptUndefinedStateExceptionConstructorInfo);
+                // before we did throw an exception only at runtime.
+                //ilGen.Emit(stateStmt, OpCodes.Ldstr, stateStmt.state.val);
+                //ilGen.Emit(stateStmt, OpCodes.Newobj, scriptUndefinedStateExceptionConstructorInfo);
             }
             else
             {

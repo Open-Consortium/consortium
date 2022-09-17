@@ -620,7 +620,7 @@ namespace OpenSim.Tests.Common
 
         public byte[] GetThrottlesPacked(float multiplier)
         {
-            return new byte[0];
+            return Array.Empty<byte>();
         }
 
         public virtual void SendAnimations(UUID[] animations, int[] seqs, UUID sourceAgentId, UUID[] objectIDs)
@@ -666,8 +666,6 @@ namespace OpenSim.Tests.Common
         }
 
         public virtual void SendWindData(int version, Vector2[] windSpeeds) { }
-
-        public virtual void SendCloudData(int version, float[] cloudCover) { }
 
         public virtual void MoveAgentIntoRegion(RegionInfo regInfo, Vector3 pos, Vector3 look)
         {

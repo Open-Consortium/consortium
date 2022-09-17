@@ -374,6 +374,10 @@ namespace OpenSim.Region.ClientStack.Linden
                     m_HostCapsObj.RegisterSimpleHandler("UpdateSettingsAgentInventory", oreq, true);
                     m_HostCapsObj.RegisterSimpleHandler("UpdateSettingsTaskInventory", oreq, false); // a object inv
 
+                    oreq = new SimpleOSDMapHandler("POST", GetNewCapPath(), UpdateMaterialItemAsset);
+                    m_HostCapsObj.RegisterSimpleHandler("UpdateMaterialAgentInventory", oreq, true);
+                    m_HostCapsObj.RegisterSimpleHandler("UpdateMaterialTaskInventory", oreq, false); // a object inv
+
                     oreq = new SimpleOSDMapHandler("POST", GetNewCapPath(), UpdateGestureItemAsset);
                     m_HostCapsObj.RegisterSimpleHandler("UpdateGestureAgentInventory", oreq, true);
                     m_HostCapsObj.RegisterSimpleHandler("UpdateGestureTaskInventory", oreq, false);
@@ -1368,14 +1372,14 @@ namespace OpenSim.Region.ClientStack.Linden
 
                 m_Scene.TryGetClient(agentID, out client);
 
-                if (objectID != UUID.Zero)
+                if (!objectID.IsZero())
                 {
                     SceneObjectPart part = m_Scene.GetSceneObjectPart(objectID);
                     if(part == null)
                         throw new Exception("failed to find object with notecard item" + notecardID.ToString());
 
                     TaskInventoryItem taskItem = part.Inventory.GetInventoryItem(notecardID);
-                    if (taskItem == null || taskItem.AssetID == UUID.Zero)
+                    if (taskItem == null || taskItem.AssetID.IsZero())
                         throw new Exception("Failed to find notecard item" + notecardID.ToString());
 
                     if (!m_Scene.Permissions.CanCopyObjectInventory(notecardID, objectID, agentID))
@@ -1400,10 +1404,10 @@ namespace OpenSim.Region.ClientStack.Linden
                         return;
                     }
 
-                    if (notecardID != UUID.Zero)
+                    if (!notecardID.IsZero())
                     {
                         InventoryItemBase noteItem = m_Scene.InventoryService.GetItem(agentID, notecardID);
-                        if (noteItem == null || noteItem.AssetID == UUID.Zero)
+                        if (noteItem == null || noteItem.AssetID.IsZero())
                             throw new Exception("Failed to find notecard item" + notecardID.ToString());
                         noteAssetID = noteItem.AssetID;
                     }
@@ -1433,7 +1437,7 @@ namespace OpenSim.Region.ClientStack.Linden
 
                 // find where to put it
                 InventoryFolderBase folder = null;
-                if (folderID != UUID.Zero)
+                if (!folderID.IsZero())
                     folder = m_Scene.InventoryService.GetFolder(agentID, folderID);
 
                 if (folder == null && Enum.IsDefined(typeof(FolderType), (sbyte)item.AssetType))
@@ -1817,7 +1821,7 @@ namespace OpenSim.Region.ClientStack.Linden
             {
                 if (parcelOwner == m_AgentID)
                     showType = 2;
-                else if (landdata.GroupID != UUID.Zero)
+                else if (!landdata.GroupID.IsZero())
                 {
                     ulong powers = sp.ControllingClient.GetGroupPowers(landdata.GroupID);
                     if ((powers & (ulong)(GroupPowers.ReturnGroupOwned | GroupPowers.ReturnGroupSet | GroupPowers.ReturnNonGroup)) != 0)
@@ -2106,7 +2110,7 @@ namespace OpenSim.Region.ClientStack.Linden
 
                 ulong gpowers = client.GetGroupPowers(land.LandData.GroupID);
                 SceneObjectGroup telehub = null;
-                if (m_Scene.RegionInfo.RegionSettings.TelehubObject != UUID.Zero)
+                if (!m_Scene.RegionInfo.RegionSettings.TelehubObject.IsZero())
                 // Does the telehub exist in the scene?
                     telehub = m_Scene.GetSceneObjectGroup(m_Scene.RegionInfo.RegionSettings.TelehubObject);
 
@@ -2224,7 +2228,7 @@ namespace OpenSim.Region.ClientStack.Linden
                     break;
 
                 groupID = tmp.AsUUID();
-                if(groupID == UUID.Zero)
+                if(groupID.IsZero())
                     break;
 
                 List<GroupRolesData> roles = m_GroupsModule.GroupRoleDataRequest(client, groupID);
@@ -2347,9 +2351,11 @@ namespace OpenSim.Region.ClientStack.Linden
             int ct = 0;
             if(names.Count == 0)
                 LLSDxmlEncode2.AddEmptyArray("agents", lsl);
+            }
             else
             {
-                LLSDxmlEncode2.AddArray("agents", lsl);
+                List<UserData> names = m_UserManager.GetKnownUsers(ids, m_scopeID);
+                lsl = LLSDxmlEncode2.Start(names.Count * 256 + 256);
 
                 foreach (KeyValuePair<UUID, NameInfo> kvp in names)
                 {
@@ -2419,9 +2425,7 @@ namespace OpenSim.Region.ClientStack.Linden
 					
                     ct++;
                 }
-                LLSDxmlEncode2.AddEndArray(lsl);
             }
-        
             LLSDxmlEncode2.AddEndMap(lsl);
 
             httpResponse.RawBuffer = LLSDxmlEncode2.EndToNBBytes(lsl);

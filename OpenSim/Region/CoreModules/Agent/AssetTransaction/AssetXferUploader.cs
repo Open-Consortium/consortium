@@ -247,7 +247,7 @@ namespace OpenSim.Region.CoreModules.Agent.AssetTransaction
 //                "[ASSET XFER UPLOADER]: Requesting Xfer of asset {0}, type {1}, transfer id {2} from {3}",
 //                m_asset.FullID, m_asset.Type, XferID, ourClient.Name);
 
-            ourClient.SendXferRequest(XferID, m_asset.Type, m_asset.FullID, 0, new byte[0]);
+            ourClient.SendXferRequest(XferID, m_asset.Type, m_asset.FullID, 0, Array.Empty<byte>());
         }
 
         protected void SendCompleteMessage()
@@ -428,7 +428,7 @@ namespace OpenSim.Region.CoreModules.Agent.AssetTransaction
             else
             {
                 m_Scene.AssetService.Store(m_asset);
-                if (m_asset.FullID != UUID.Zero)
+                if (!m_asset.FullID.IsZero())
                 {
                     item.AssetID = m_asset.FullID;
                     m_Scene.InventoryService.UpdateItem(item);
@@ -556,7 +556,7 @@ namespace OpenSim.Region.CoreModules.Agent.AssetTransaction
                             UUID tx = new UUID(parts[1]);
                             int id = Convert.ToInt32(parts[0]);
 
-                            if (defaultIDs.Contains(tx) || tx == UUID.Zero ||
+                            if (defaultIDs.Contains(tx) || tx.IsZero() ||
                                 (allowed.ContainsKey(id) && allowed[id] == tx))
                             {
                                 continue;

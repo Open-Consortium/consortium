@@ -158,10 +158,7 @@ namespace OpenSim.Region.Framework.Scenes
             get
             {
                 // assume SitTargetOrientation is normalized (as needed elsewhere)
-                if( SitTargetPosition != Vector3.Zero ||
-                    SitTargetOrientation.X != 0f ||
-                    SitTargetOrientation.Y != 0f ||
-                    SitTargetOrientation.Z != 0f)
+                if( !SitTargetPosition.IsZero() || !SitTargetOrientation.IsIdentityOrZero())
                     return true;
                 return false;
             }
@@ -537,7 +534,7 @@ namespace OpenSim.Region.Framework.Scenes
             set
             {
                 CreatorData = string.Empty;
-                if ((value == null) || (value != null && value == string.Empty))
+                if (string.IsNullOrEmpty(value))
                     return;
 
                 // value is uuid  or uuid;homeuri;firstname lastname
@@ -736,7 +733,7 @@ namespace OpenSim.Region.Framework.Scenes
                 if(m_particleSystemExpire > 0 && Util.GetTimeStamp() > m_particleSystemExpire)
                 {
                     m_particleSystemExpire = -1;
-                    m_particleSystem = new byte[0];
+                    m_particleSystem = Array.Empty<byte>();
                 }
                 return m_particleSystem;
             }
@@ -1550,7 +1547,7 @@ namespace OpenSim.Region.Framework.Scenes
 
                 if (value == invalidCollisionSoundUUID)
                     m_collisionSoundType = -1;
-                else if (value == UUID.Zero)
+                else if (value.IsZero())
                     m_collisionSoundType = 0;
                 else
                     m_collisionSoundType = 1;
@@ -1992,7 +1989,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public void RemoveParticleSystem()
         {
-            m_particleSystem = new byte[0];
+            m_particleSystem = Array.Empty<byte>();
         }
 
         public void AddTextureAnimation(Primitive.TextureAnimation pTexAnim)
@@ -2165,24 +2162,17 @@ namespace OpenSim.Region.Framework.Scenes
             if (_VolumeDetectActive)
                 isPhantom = true;
 
-            if (IsJoint())
+            if ((!isPhantom || isPhysical || _VolumeDetectActive)
+                    && !ParentGroup.IsAttachmentCheckFull()
+                    && !(Shape.PathCurve == (byte)Extrusion.Flexible))
             {
-                DoPhysicsPropertyUpdate(isPhysical, true);
+                AddToPhysics(isPhysical, isPhantom, building, isPhysical);
+                UpdatePhysicsSubscribedEvents(); // not sure if appliable here
             }
             else
             {
-                if ((!isPhantom || isPhysical || _VolumeDetectActive)
-                        && !ParentGroup.IsAttachmentCheckFull()
-                        && !(Shape.PathCurve == (byte)Extrusion.Flexible))
-                {
-                    AddToPhysics(isPhysical, isPhantom, building, isPhysical);
-                    UpdatePhysicsSubscribedEvents(); // not sure if appliable here
-                }
-                else
-                {
-                    PhysActor = null; // just to be sure
-                    RemFlag(PrimFlags.CameraDecoupled);
-                }
+                PhysActor = null; // just to be sure
+                RemFlag(PrimFlags.CameraDecoupled);
             }
         }
 
@@ -2289,98 +2279,6 @@ namespace OpenSim.Region.Framework.Scenes
         }
 
         /// <summary>
-        /// Do a physics property update for a NINJA joint.
-        /// </summary>
-        /// <param name="UsePhysics"></param>
-        /// <param name="isNew"></param>
-        protected void DoPhysicsPropertyUpdateForNinjaJoint(bool UsePhysics, bool isNew)
-        {
-            if (UsePhysics)
-            {
-                // by turning a joint proxy object physical, we cause creation of a joint in the ODE scene.
-                // note that, as a special case, joints have no bodies or geoms in the physics scene, even though they are physical.
-
-                PhysicsJointType jointType;
-                if (IsHingeJoint())
-                {
-                    jointType = PhysicsJointType.Hinge;
-                }
-                else if (IsBallJoint())
-                {
-                    jointType = PhysicsJointType.Ball;
-                }
-                else
-                {
-                    jointType = PhysicsJointType.Ball;
-                }
-
-                List<string> bodyNames = new List<string>();
-                string RawParams = Description;
-                string[] jointParams = RawParams.Split(" ".ToCharArray(), System.StringSplitOptions.RemoveEmptyEntries);
-                string trackedBodyName = null;
-                if (jointParams.Length >= 2)
-                {
-                    for (int iBodyName = 0; iBodyName < 2; iBodyName++)
-                    {
-                        string bodyName = jointParams[iBodyName];
-                        bodyNames.Add(bodyName);
-                        if (bodyName != "NULL")
-                        {
-                            if (trackedBodyName == null)
-                            {
-                                trackedBodyName = bodyName;
-                            }
-                        }
-                    }
-                }
-
-                SceneObjectPart trackedBody = ParentGroup.Scene.GetSceneObjectPart(trackedBodyName); // FIXME: causes a sequential lookup
-                Quaternion localRotation = Quaternion.Identity;
-                if (trackedBody != null)
-                {
-                    localRotation = Quaternion.Inverse(trackedBody.RotationOffset) * this.RotationOffset;
-                }
-                else
-                {
-                    // error, output it below
-                }
-
-                PhysicsJoint joint;
-
-                joint = ParentGroup.Scene.PhysicsScene.RequestJointCreation(Name, jointType,
-                    AbsolutePosition,
-                    this.RotationOffset,
-                    Description,
-                    bodyNames,
-                    trackedBodyName,
-                    localRotation);
-
-                if (trackedBody == null)
-                {
-                    ParentGroup.Scene.jointErrorMessage(joint, "warning: tracked body name not found! joint location will not be updated properly. joint: " + Name);
-                }
-            }
-            else
-            {
-                if (isNew)
-                {
-                    // if the joint proxy is new, and it is not physical, do nothing. There is no joint in ODE to
-                    // delete, and if we try to delete it, due to asynchronous processing, the deletion request
-                    // will get processed later at an indeterminate time, which could cancel a later-arriving
-                    // joint creation request.
-                }
-                else
-                {
-                    // here we turn off the joint object, so remove the joint from the physics scene
-                    ParentGroup.Scene.PhysicsScene.RequestJointDeletion(Name); // FIXME: what if the name changed?
-
-                    // make sure client isn't interpolating the joint proxy object
-                    Stop();
-                }
-            }
-        }
-
-        /// <summary>
         /// Do a physics propery update for this part.
         /// now also updates phantom and volume detector
         /// </summary>
@@ -2394,92 +2292,75 @@ namespace OpenSim.Region.Framework.Scenes
             if (!ParentGroup.Scene.PhysicalPrims && UsePhysics)
                 return;
 
-            if (IsJoint())
-            {
-                DoPhysicsPropertyUpdateForNinjaJoint(UsePhysics, isNew);
-            }
-            else
-            {
-                PhysicsActor pa = PhysActor;
+            PhysicsActor pa = PhysActor;
 
-                if (pa != null)
+            if (pa != null)
+            {
+                if (UsePhysics != pa.IsPhysical)
+                    ClampScale(UsePhysics);
+
+                if (UsePhysics != pa.IsPhysical || isNew)
                 {
-                    if (UsePhysics != pa.IsPhysical)
-                        ClampScale(UsePhysics);
-
-                    if (UsePhysics != pa.IsPhysical || isNew)
+                    if (pa.IsPhysical) // implies UsePhysics==false for this block
                     {
-                        if (pa.IsPhysical) // implies UsePhysics==false for this block
+                        if (!isNew)  // implies UsePhysics==false for this block
                         {
-                            if (!isNew)  // implies UsePhysics==false for this block
+                            ParentGroup.Scene.RemovePhysicalPrim(1);
+
+                            Stop();
+
+                            if (pa.Phantom && !VolumeDetectActive)
                             {
-                                ParentGroup.Scene.RemovePhysicalPrim(1);
-
-                                Stop();
-
-                                if (pa.Phantom && !VolumeDetectActive)
-                                {
-                                    RemoveFromPhysics();
-                                    return;
-                                }
-
-                                pa.IsPhysical = UsePhysics;
-                                pa.OnRequestTerseUpdate -= PhysicsRequestingTerseUpdate;
-                                pa.OnOutOfBounds -= PhysicsOutOfBounds;
-                                pa.delink();
-                                if (ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
-                                {
-                                    // destroy all joints connected to this now deactivated body
-                                    ParentGroup.Scene.PhysicsScene.RemoveAllJointsConnectedToActorThreadLocked(pa);
-                                }
+                                RemoveFromPhysics();
+                                return;
                             }
-                        }
 
-                        if (pa.IsPhysical != UsePhysics)
                             pa.IsPhysical = UsePhysics;
-
-                        if (UsePhysics)
-                        {
-                            if (ParentGroup.RootPart.KeyframeMotion != null)
-                                ParentGroup.RootPart.KeyframeMotion.Stop();
-                            ParentGroup.RootPart.KeyframeMotion = null;
-                            ParentGroup.Scene.AddPhysicalPrim(1);
-
-                            PhysActor.OnRequestTerseUpdate += PhysicsRequestingTerseUpdate;
-                            PhysActor.OnOutOfBounds += PhysicsOutOfBounds;
-
-                            if (_parentID != 0 && _parentID != LocalId)
-                            {
-                                PhysicsActor parentPa = ParentGroup.RootPart.PhysActor;
-
-                                if (parentPa != null)
-                                {
-                                    pa.link(parentPa);
-                                }
-                            }
+                            pa.OnRequestTerseUpdate -= PhysicsRequestingTerseUpdate;
+                            pa.OnOutOfBounds -= PhysicsOutOfBounds;
+                            pa.delink();
                         }
                     }
 
-                    bool phan = ((m_flags & PrimFlags.Phantom) != 0);
-                    if (pa.Phantom != phan)
-                        pa.Phantom = phan;
+                    if (pa.IsPhysical != UsePhysics)
+                        pa.IsPhysical = UsePhysics;
 
-// some engines dont' have this check still
-//                    if (VolumeDetectActive != pa.IsVolumeDtc)
+                    if (UsePhysics)
                     {
-                        if (VolumeDetectActive)
-                            pa.SetVolumeDetect(1);
-                        else
-                            pa.SetVolumeDetect(0);
-                    }
+                        if (ParentGroup.RootPart.KeyframeMotion != null)
+                            ParentGroup.RootPart.KeyframeMotion.Stop();
+                        ParentGroup.RootPart.KeyframeMotion = null;
+                        ParentGroup.Scene.AddPhysicalPrim(1);
 
-                    // If this part is a sculpt then delay the physics update until we've asynchronously loaded the
-                    // mesh data.
-//                    if (Shape.SculptEntry)
-//                        CheckSculptAndLoad();
-//                    else
-                        ParentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(pa);
+                        PhysActor.OnRequestTerseUpdate += PhysicsRequestingTerseUpdate;
+                        PhysActor.OnOutOfBounds += PhysicsOutOfBounds;
+
+                        if (_parentID != 0 && _parentID != LocalId)
+                        {
+                            PhysicsActor parentPa = ParentGroup.RootPart.PhysActor;
+
+                            if (parentPa != null)
+                            {
+                                pa.link(parentPa);
+                            }
+                        }
+                    }
                 }
+
+                bool phan = ((m_flags & PrimFlags.Phantom) != 0);
+                if (pa.Phantom != phan)
+                    pa.Phantom = phan;
+
+                // some engines dont' have this check still
+                // if (VolumeDetectActive != pa.IsVolumeDtc)
+                {
+                    if (VolumeDetectActive)
+                        pa.SetVolumeDetect(1);
+                    else
+                        pa.SetVolumeDetect(0);
+                }
+
+                ParentGroup.Scene.PhysicsScene.AddPhysicsActorTaint(pa);
             }
         }
 
@@ -2818,7 +2699,7 @@ namespace OpenSim.Region.Framework.Scenes
             };
             if(av.IsSatOnObject)
                 detobj.colliderType |= 0x4; //passive
-            else if(detobj.velVector != Vector3.Zero)
+            else if(!detobj.velVector.IsZero())
                 detobj.colliderType |= 0x2; //active
             return detobj;
         }
@@ -3071,7 +2952,11 @@ namespace OpenSim.Region.Framework.Scenes
         // The Collision sounds code calls this
         public void SendCollisionSound(UUID soundID, double volume, Vector3 position)
         {
-            if (soundID == UUID.Zero)
+            if (soundID.IsZero())
+                return;
+
+            int now = Util.EnvironmentTickCount();
+            if (Util.EnvironmentTickCountSubtract(now, LastColSoundSentTime) < 200)
                 return;
 
             ISoundModule soundModule = ParentGroup.Scene.RequestModuleInterface<ISoundModule>();
@@ -3080,12 +2965,8 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (volume > 1)
                 volume = 1;
-            if (volume < 0)
+            else if (volume < 0)
                 volume = 0;
-
-            int now = Util.EnvironmentTickCount();
-            if(Util.EnvironmentTickCountSubtract(now, LastColSoundSentTime) < 200)
-                return;
 
             LastColSoundSentTime = now;
 
@@ -3094,7 +2975,7 @@ namespace OpenSim.Region.Framework.Scenes
             UUID parentID = ParentGroup.UUID;
             ulong regionHandle = ParentGroup.Scene.RegionInfo.RegionHandle;
 
-            soundModule.TriggerSound(soundID, ownerID, objectID, parentID, volume, position, regionHandle);
+            soundModule.TriggerCollisionSound(soundID, ownerID, objectID, parentID, volume, position, regionHandle);
         }
 
         public void PhysicsOutOfBounds(Vector3 pos)
@@ -3148,6 +3029,12 @@ namespace OpenSim.Region.Framework.Scenes
                 {
                     if((ev & (scriptEvents.anyTarget)) != 0 && ParentGroup != null)
                             ParentGroup.RemoveScriptTargets(scriptid);
+                    if ((AggregatedScriptEvents & scriptEvents.email) != 0)
+                    {
+                        IEmailModule scriptEmail = ParentGroup.Scene.RequestModuleInterface<IEmailModule>();
+                        if (scriptEmail != null)
+                            scriptEmail.RemovePartMailBox(UUID);
+                    }
                     m_scriptEvents.Remove(scriptid);
                     aggregateScriptEvents();
                 }
@@ -3849,9 +3736,9 @@ namespace OpenSim.Region.Framework.Scenes
         /// <param name="alpha"></param>
         public void SetFaceColorAlpha(int face, Vector3 color, double ?alpha)
         {
-            Vector3 clippedColor = Util.Clip(color, 0.0f, 1.0f);
+            Vector3 clippedColor = Vector3.Clamp(color, 0.0f, 1.0f);
             float clippedAlpha = alpha.HasValue ?
-                Util.Clip((float)alpha.Value, 0.0f, 1.0f) : 0;
+                Utils.Clamp((float)alpha.Value, 0.0f, 1.0f) : 0;
 
             // The only way to get a deep copy/ If we don't do this, we can
             // never detect color changes further down.
@@ -4065,7 +3952,7 @@ namespace OpenSim.Region.Framework.Scenes
             ProfileShape ps = (ProfileShape)(Shape.ProfileCurve & 0x07);
             if (ps == ProfileShape.Square)
             {
-                if (Shape.PathCurve == (byte)Extrusion.Straight)
+                if (Shape.PathCurve == (byte)Extrusion.Straight || Shape.PathCurve == (byte)Extrusion.Flexible)
                     return PrimType.BOX;
                 else if (Shape.PathCurve == (byte)Extrusion.Curve1)
                     return PrimType.TUBE;
@@ -4794,53 +4681,6 @@ namespace OpenSim.Region.Framework.Scenes
                 SendFullUpdateToAllClients();
         }
 
-        public bool IsHingeJoint()
-        {
-            // For now, we use the NINJA naming scheme for identifying joints.
-            // In the future, we can support other joint specification schemes such as a
-            // custom checkbox in the viewer GUI.
-            if (ParentGroup.Scene != null && ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
-            {
-                string hingeString = "hingejoint";
-                return (Name.Length >= hingeString.Length && Name.Substring(0, hingeString.Length) == hingeString);
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public bool IsBallJoint()
-        {
-            // For now, we use the NINJA naming scheme for identifying joints.
-            // In the future, we can support other joint specification schemes such as a
-            // custom checkbox in the viewer GUI.
-            if (ParentGroup.Scene != null && ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
-            {
-                string ballString = "balljoint";
-                return (Name.Length >= ballString.Length && Name.Substring(0, ballString.Length) == ballString);
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        public bool IsJoint()
-        {
-            // For now, we use the NINJA naming scheme for identifying joints.
-            // In the future, we can support other joint specification schemes such as a
-            // custom checkbox in the viewer GUI.
-            if (ParentGroup.Scene != null && ParentGroup.Scene.PhysicsScene != null && ParentGroup.Scene.PhysicsScene.SupportsNINJAJoints)
-            {
-                return IsHingeJoint() || IsBallJoint();
-            }
-            else
-            {
-                return false;
-            }
-        }
-
         public void UpdateExtraPhysics(ExtraPhysicsData physdata)
         {
             if (physdata.PhysShapeType == PhysShapeType.invalid || ParentGroup == null)
@@ -5008,7 +4848,7 @@ namespace OpenSim.Region.Framework.Scenes
 
             if (pa != null)
             {
-                pa.SOPName = this.Name; // save object into the PhysActor so ODE internals know the joint/body info
+                pa.SOPName = Name;
                 pa.SetMaterial(Material);
 
                 pa.Density = Density;
@@ -5426,7 +5266,14 @@ namespace OpenSim.Region.Framework.Scenes
 
             m_localFlags = (PrimFlags)objectflagupdate;
 
-            if (ParentGroup != null && ParentGroup.RootPart == this)
+            if ((AggregatedScriptEvents & scriptEvents.email) != 0)
+            {
+                IEmailModule imm = ParentGroup.Scene.RequestModuleInterface<IEmailModule>();
+                if (imm != null)
+                    imm.AddPartMailBox(UUID);
+            }
+
+            if (ParentGroup.RootPart == this)
             {
                 ParentGroup.aggregateScriptEvents();
             }
@@ -5665,7 +5512,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             lock (ParentGroup.m_sittingAvatars)
             {
-                if (IsSitTargetSet && SitTargetAvatar == UUID.Zero)
+                if (IsSitTargetSet && SitTargetAvatar.IsZero())
                     SitTargetAvatar = sp.UUID;
 
                 if (m_sittingAvatars == null)
@@ -5695,7 +5542,7 @@ namespace OpenSim.Region.Framework.Scenes
         {
             lock (ParentGroup.m_sittingAvatars)
             {
-                if (SitTargetAvatar == sp.UUID)
+                if (SitTargetAvatar.Equals(sp.UUID))
                     SitTargetAvatar = UUID.Zero;
 
                 if (m_sittingAvatars == null)
@@ -5801,7 +5648,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public bool AddAnimation(UUID animId, string animName)
         {
-            if (animId == UUID.Zero || string.IsNullOrEmpty(animName) ||
+            if (animId.IsZero() || string.IsNullOrEmpty(animName) ||
                     ParentGroup == null || ParentGroup.IsDeleted || ParentGroup.inTransit)
                 return false;
 
@@ -5824,7 +5671,7 @@ namespace OpenSim.Region.Framework.Scenes
 
         public bool RemoveAnimation(UUID animId)
         {
-            if (animId == UUID.Zero || ParentGroup == null || ParentGroup.IsDeleted || ParentGroup.inTransit)
+            if (animId.IsZero() || ParentGroup == null || ParentGroup.IsDeleted || ParentGroup.inTransit)
                 return false;
 
             lock (animsLock)
@@ -5983,7 +5830,7 @@ namespace OpenSim.Region.Framework.Scenes
                 while(--count >= 0)
                 {
                     UUID id = new UUID(data, pos);
-                    if(id == UUID.Zero)
+                    if(id.IsZero())
                         break;
                     pos += 16;
                     int strlen = data[pos++];
@@ -6000,6 +5847,15 @@ namespace OpenSim.Region.Framework.Scenes
 
             Animations = null;
             AnimationsNames = null;
+        }
+
+        public bool GetOwnerName(out string FirstName, out string LastName)
+        {
+            if(ParentGroup != null)
+                return ParentGroup.GetOwnerName(out FirstName, out LastName);
+            FirstName = string.Empty;
+            LastName = string.Empty;
+            return false;
         }
     }
 }

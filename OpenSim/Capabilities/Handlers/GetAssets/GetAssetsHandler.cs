@@ -68,7 +68,8 @@ namespace OpenSim.Capabilities.Handlers
             {"animatn_id", AssetType.Animation},
             {"gesture_id", AssetType.Gesture},
             {"mesh_id", AssetType.Mesh},
-            {"settings_id", AssetType.Settings}
+            {"settings_id", AssetType.Settings},
+            {"material_id", AssetType.Material}
         };
 
         private IAssetService m_assetService;
@@ -161,7 +162,9 @@ namespace OpenSim.Capabilities.Handlers
                 return;
             }
 
-            if (asset.Type != (sbyte)type)
+            int len = asset.Data.Length;
+
+            if (len == 0)
             {
                 m_log.Warn("[GETASSET]: asset with wrong type: " + assetStr + " " + asset.Type.ToString() + " != " + ((sbyte)type).ToString());
                 response.RawBuffer = Util.StringToBytesNoTerm("Not Found", 10);
@@ -169,7 +172,7 @@ namespace OpenSim.Capabilities.Handlers
                 return;
             }
 
-            if (asset.Data.Length == 0)
+            if (asset.Type != (sbyte)type)
             {
                 m_log.Warn("[GETASSET]: asset with empty data: " + assetStr +" type " + asset.Type.ToString());
                 response.RawBuffer = Util.StringToBytesNoTerm("Not Found", 10);
@@ -177,20 +180,11 @@ namespace OpenSim.Capabilities.Handlers
                 return;
             }
 
-            int len = asset.Data.Length;
-
-            string range = null;
-            if (req.Headers["Range"] != null)
-                range = req.Headers["Range"];
-            else if (req.Headers["range"] != null)
-                range = req.Headers["range"];
-
             // range request
-            int start, end;
-            if (Util.TryParseHttpRange(range, out start, out end))
+            if (Util.TryParseHttpRange(req.Headers["range"], out int start, out int end))
             {
                 // viewers do send broken start, then flag good assets as bad
-                if (start >= asset.Data.Length)
+                if (start >= len)
                 {
                     //m_log.Warn("[GETASSET]: bad start: " + range);
                     response.StatusCode = (int)HttpStatusCode.OK;
@@ -198,17 +192,17 @@ namespace OpenSim.Capabilities.Handlers
                 else
                 {
                     if (end == -1)
-                        end = asset.Data.Length - 1;
+                        end = len - 1;
                     else
-                        end = Utils.Clamp(end, 0, asset.Data.Length - 1);
+                        end = Utils.Clamp(end, 0, len - 1);
 
                     start = Utils.Clamp(start, 0, end);
                     len = end - start + 1;
 
-                //m_log.Debug("Serving " + start + " to " + end + " of " + texture.Data.Length + " bytes for texture " + texture.ID);
-                response.AddHeader("Content-Range", string.Format("bytes {0}-{1}/{2}", start, end, asset.Data.Length));
-                response.StatusCode = (int)HttpStatusCode.PartialContent;
-                response.RawBufferStart = start;
+                    //m_log.Debug("Serving " + start + " to " + end + " of " + texture.Data.Length + " bytes for texture " + texture.ID);
+                    response.AddHeader("Content-Range", string.Format("bytes {0}-{1}/{2}", start, end, asset.Data.Length));
+                    response.StatusCode = (int)HttpStatusCode.PartialContent;
+                    response.RawBufferStart = start;
                 }
             }
             else
